@@ -1,0 +1,478 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DMetric — Resource Monitor</title>
+<meta name="color-scheme" content="light">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<a class="skip" href="#main">Lewati ke konten</a>
+<header class="topbarWrap">
+<div class="topbar">
+  <div class="brand">
+    <span class="logo" aria-hidden="true">
+      <svg viewBox="0 0 40 40" width="40" height="40">
+        <rect width="40" height="40" rx="11" fill="var(--accent)"/>
+        <path d="M10 27a10 10 0 1 1 20 0" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+        <path d="M20 27l6-8" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+        <circle cx="20" cy="27" r="2.6" fill="#fff"/>
+      </svg>
+    </span>
+    <div class="brandText">
+      <h1>DMetric</h1>
+      <a class="verChip" id="verChip" href="/releases.html" title="Catatan rilis" hidden>—</a>
+      <p>Resource monitor</p>
+    </div>
+  </div>
+  <div class="hostline">
+    <span id="hostName">—</span>
+    <span class="sep">·</span>
+    <span id="hostMeta">—</span>
+    <span class="sep">·</span>
+    <span>up <span id="uptime">—</span></span>
+  </div>
+  <div class="topActions">
+    <span class="live" id="liveBadge" role="status"><i></i><span id="liveText">Menghubungkan…</span></span>
+    <button class="actionBtn" id="captureBtn" type="button" title="Simpan laporan insiden sebagai JSON">
+      <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/>
+      </svg>
+      <span>Catat insiden</span>
+    </button>
+    <button class="iconBtn updateBtn" id="updateBtn" type="button" title="Pembaruan" aria-label="Pembaruan">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v5h-5"/><path d="M12 8v7"/><path d="M9 12l3 3 3-3"/>
+      </svg>
+      <span class="updateDot" id="updateDot" hidden></span>
+    </button>
+    <button class="iconBtn" id="settingsBtn" type="button" title="Pengaturan" aria-label="Buka pengaturan">
+      <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="3.2"/>
+        <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1.11-1.55 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.64 8.9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.55V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87V9a1.7 1.7 0 0 0 1.55 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1Z"/>
+      </svg>
+    </button>
+  </div>
+</div>
+</header>
+
+<main id="main">
+  <section class="alertbar" id="alertBar" aria-live="polite" aria-label="Peringatan aktif">
+    <span class="alertNone">Memuat status…</span>
+  </section>
+  <div class="warnings" id="warnings" hidden></div>
+
+  <section class="card diagnosis" id="diagnosisCard" data-level="ok" aria-live="polite">
+    <div class="diagTop">
+      <div class="diagTitleWrap">
+        <span class="eyebrow">Diagnosis</span>
+        <h2 id="diagHeadline">Menunggu data…</h2>
+      </div>
+      <span class="badge ended" id="diagLevel">—</span>
+    </div>
+    <ul class="findings" id="findings"></ul>
+    <div class="diagFoot">
+      <span id="diagClient">Latensi browser→server: —</span>
+      <span id="diagNote">Dari 2 menit terakhir · buka dashboard dari PC client yang lemot untuk mengukur jalur jaringan</span>
+    </div>
+  </section>
+
+  <section class="grid metrics">
+    <article class="card" id="cardCPU" data-level="ok">
+      <div class="cardHead">
+        <h2>CPU</h2>
+        <span class="tag" id="cpuTag">—</span>
+      </div>
+      <div class="big"><span class="value" id="cpuValue">—</span><span class="unit">%</span></div>
+      <div class="sub" id="cpuLoad">load —</div>
+      <svg class="spark" id="cpuSpark" viewBox="0 0 300 54" preserveAspectRatio="none" aria-hidden="true">
+        <path class="area c1"></path>
+        <path class="line c1"></path>
+      </svg>
+    </article>
+
+    <article class="card" id="cardRAM" data-level="ok">
+      <div class="cardHead">
+        <h2>RAM</h2>
+        <span class="tag" id="ramTag">—</span>
+      </div>
+      <div class="big"><span class="value" id="ramValue">—</span><span class="unit">%</span></div>
+      <div class="sub" id="ramSub">—</div>
+      <svg class="spark" id="ramSpark" viewBox="0 0 300 54" preserveAspectRatio="none" aria-hidden="true">
+        <path class="area c2"></path>
+        <path class="line c2"></path>
+      </svg>
+    </article>
+
+    <article class="card" id="cardStorage" data-level="ok">
+      <div class="cardHead">
+        <h2>Penyimpanan sistem</h2>
+        <span class="tag" id="storageTag">—</span>
+      </div>
+      <div class="big"><span class="value" id="storageValue">—</span><span class="unit">%</span></div>
+      <div class="sub" id="storageSub">—</div>
+      <div class="bar" role="progressbar" aria-label="Pemakaian penyimpanan" aria-valuemin="0" aria-valuemax="100" id="storageBarWrap">
+        <span id="storageBar"></span>
+      </div>
+    </article>
+
+    <article class="card">
+      <div class="cardHead">
+        <h2>Internet</h2>
+        <span class="tag" id="netTag">—</span>
+      </div>
+      <div class="duo">
+        <div><span class="duoLabel">Unduh</span><span class="duoValue" id="rxValue">—</span></div>
+        <div><span class="duoLabel">Unggah</span><span class="duoValue" id="txValue">—</span></div>
+      </div>
+      <div class="sub" id="netTotals">—</div>
+      <div class="sub" id="netLatency">Latensi —</div>
+      <div class="sub" id="netIfaces">Interface —</div>
+      <svg class="spark" id="netSpark" viewBox="0 0 300 54" preserveAspectRatio="none" aria-hidden="true">
+        <path class="area c1"></path>
+        <path class="line c1"></path>
+        <path class="area c4"></path>
+        <path class="line c4"></path>
+      </svg>
+    </article>
+
+    <article class="card">
+      <div class="cardHead">
+        <h2>Disk I/O</h2>
+        <span class="tag" id="ioTag">—</span>
+      </div>
+      <div class="duo">
+        <div><span class="duoLabel">Baca</span><span class="duoValue" id="readValue">—</span></div>
+        <div><span class="duoLabel">Tulis</span><span class="duoValue" id="writeValue">—</span></div>
+      </div>
+      <div class="sub" id="ioTotals">—</div>
+      <div class="sub" id="ioLatency">Latensi — · antrean —</div>
+      <svg class="spark" id="ioSpark" viewBox="0 0 300 54" preserveAspectRatio="none" aria-hidden="true">
+        <path class="area c3"></path>
+        <path class="line c3"></path>
+        <path class="area c4"></path>
+        <path class="line c4"></path>
+      </svg>
+    </article>
+
+    <article class="card">
+      <div class="cardHead">
+        <h2>Port</h2>
+        <span class="tag" id="portsTag">—</span>
+      </div>
+      <div class="big small"><span class="value" id="portsValue">—</span><span class="unit">terbuka</span></div>
+      <div class="sub" id="portsSub">TCP listen · UDP bound</div>
+      <div class="listBlock portsList">
+        <table class="table compact" aria-label="Port yang terbuka">
+          <thead><tr><th>Proto</th><th>Port</th><th>Bind</th><th>Proses</th></tr></thead>
+          <tbody id="portsBody"><tr><td colspan="4" class="empty">Menunggu data…</td></tr></tbody>
+        </table>
+      </div>
+    </article>
+  </section>
+
+  <section class="grid three">
+    <article class="card">
+      <div class="cardHead">
+        <h2>Volume &amp; RAID</h2>
+        <span class="tag" id="volumeTag">—</span>
+      </div>
+      <div class="sub">Bandingkan volume OS dan data. Latensi tulis tinggi di volume RAID 5 menunjuk ke array HDD, bukan SSD OS.</div>
+      <div class="listBlock">
+        <table class="table compact" aria-label="Volume, pemakaian dan latensi">
+          <thead><tr><th>Volume</th><th>Pakai</th><th class="num">Baca</th><th class="num">Tulis</th><th class="num">Lat R/W</th><th class="num">Antre</th></tr></thead>
+          <tbody id="volumesBody"><tr><td colspan="6" class="empty">Menunggu data…</td></tr></tbody>
+        </table>
+      </div>
+    </article>
+
+    <article class="card">
+      <div class="cardHead">
+        <h2>Aplikasi fokus</h2>
+        <span class="tag" id="appsTag">—</span>
+      </div>
+      <div class="sub">Total proses yang cocok dengan pola. Ubah pola di Pengaturan (bawaan: chromeleon, sqlservr).</div>
+      <div class="listBlock">
+        <table class="table compact" aria-label="Aplikasi fokus">
+          <thead><tr><th>Aplikasi</th><th class="num">Proses</th><th class="num">CPU</th><th class="num">RAM</th><th class="num">Disk R/W</th></tr></thead>
+          <tbody id="appsBody"><tr><td colspan="5" class="empty">Menunggu data…</td></tr></tbody>
+        </table>
+      </div>
+    </article>
+
+    <article class="card">
+      <div class="cardHead">
+        <h2>Latensi jaringan</h2>
+        <span class="tag" id="probesTag">—</span>
+      </div>
+      <div class="sub">ICMP gateway dan TCP handshake ke target. Tambahkan host:port SQL/Chromeleon di Pengaturan.</div>
+      <div class="listBlock">
+        <table class="table compact" aria-label="Latensi jaringan">
+          <thead><tr><th>Target</th><th>Jenis</th><th class="num">RTT</th><th class="num">Loss</th><th>Status</th></tr></thead>
+          <tbody id="probesBody"><tr><td colspan="5" class="empty">Menunggu data…</td></tr></tbody>
+        </table>
+      </div>
+    </article>
+  </section>
+
+  <section class="card hardware" id="hardwareCard">
+    <div class="cardHead">
+      <h2>Kesehatan hardware</h2>
+      <div class="hwHead">
+        <span class="tag" id="hwSource">—</span>
+        <span class="badge ended" id="hwStatus">—</span>
+      </div>
+    </div>
+    <div class="sub">Motherboard, CPU, RAM, dan disk fisik. Windows: CIM/PowerShell · Linux: sysfs/EDAC/smartctl · macOS: system_profiler.</div>
+    <div class="hwGrid">
+      <div class="hwBlock"><span class="eyebrow">Sistem</span><div class="hwBody" id="hwSystem">—</div></div>
+      <div class="hwBlock"><span class="eyebrow">CPU</span><div class="hwBody" id="hwCPU">—</div></div>
+      <div class="hwBlock"><span class="eyebrow">RAM</span><div class="hwBody" id="hwMemory">—</div></div>
+    </div>
+    <div class="hwSection">Modul RAM</div>
+    <div class="listBlock">
+      <table class="table compact" aria-label="Modul RAM">
+        <thead><tr><th>Slot</th><th>Merek</th><th>Serial</th><th>Part</th><th class="num">Ukuran</th><th class="num">Speed</th></tr></thead>
+        <tbody id="hwModulesBody"><tr><td colspan="6" class="empty">Menunggu data modul RAM…</td></tr></tbody>
+      </table>
+    </div>
+    <div class="hwSection" id="hwGpuSection" hidden>GPU / NPU</div>
+    <div class="listBlock" id="hwGpuBlock" hidden>
+      <table class="table compact" aria-label="GPU dan NPU">
+        <thead><tr><th>Nama</th><th>Tipe</th><th>Vendor</th><th class="num">Memori</th><th>Driver</th><th>Status</th></tr></thead>
+        <tbody id="hwGpuBody"></tbody>
+      </table>
+    </div>
+    <div class="hwSection" id="hwFanSection" hidden>Fan</div>
+    <div class="listBlock" id="hwFanBlock" hidden>
+      <table class="table compact" aria-label="Sensor fan">
+        <thead><tr><th>Nama</th><th class="num">RPM</th><th class="num">Minimum</th><th>Status</th><th>Sumber</th><th>Detail</th></tr></thead>
+        <tbody id="hwFanBody"></tbody>
+      </table>
+    </div>
+    <div class="hwSection" id="hwPsuSection" hidden>PSU</div>
+    <div class="listBlock" id="hwPsuBlock" hidden>
+      <table class="table compact" aria-label="Status power supply">
+        <thead><tr><th>Nama</th><th>Status</th><th>Detail</th><th>Sumber</th></tr></thead>
+        <tbody id="hwPsuBody"></tbody>
+      </table>
+    </div>
+    <div class="hwSection">Disk fisik</div>
+    <div class="listBlock auto">
+      <table class="table compact" aria-label="Kesehatan disk fisik">
+        <thead><tr><th>Disk</th><th>Serial</th><th>Media</th><th class="num">Ukuran</th><th>Health</th><th class="num">Suhu</th><th class="num">Wear</th><th class="num">POH</th><th class="num">Error R/W</th></tr></thead>
+        <tbody id="hwStorageBody"><tr><td colspan="9" class="empty">Menunggu data hardware…</td></tr></tbody>
+      </table>
+    </div>
+    <ul class="hwIssues" id="hwIssues"></ul>
+    <div class="sub" id="hwNotes"></div>
+  </section>
+
+  <section class="grid lower">
+    <article class="card">
+      <div class="cardHead">
+        <h2>Proses teratas</h2>
+        <span class="tag" id="procsTag">—</span>
+      </div>
+      <div class="sub">Pemakai CPU, RAM, atau disk terbesar. Baca/Tulis per proses bila OS mengizinkan.</div>
+      <div class="listBlock tall">
+        <table class="table" aria-label="Proses dengan pemakaian terbesar">
+          <thead><tr><th>Proses</th><th class="num">PID</th><th class="num">CPU</th><th class="num">RAM</th><th class="num">Baca</th><th class="num">Tulis</th></tr></thead>
+          <tbody id="procsBody"><tr><td colspan="6" class="empty">Menunggu data…</td></tr></tbody>
+        </table>
+      </div>
+    </article>
+
+    <article class="card">
+      <div class="cardHead">
+        <h2>Riwayat alert</h2>
+        <span class="tag" id="alertTag">—</span>
+      </div>
+      <div class="sub">Ambang dilanggar selama beberapa detik berturut-turut sebelum alert dibuat.</div>
+      <div class="listBlock tall">
+        <table class="table" aria-label="Riwayat alert">
+          <thead><tr><th>Waktu</th><th>Tingkat</th><th>Pesan</th><th>Status</th></tr></thead>
+          <tbody id="alertsBody"><tr><td colspan="4" class="empty">Belum ada alert.</td></tr></tbody>
+        </table>
+      </div>
+    </article>
+  </section>
+
+  <section class="card chartPanel">
+    <div class="cardHead">
+      <h2>Tren</h2>
+      <div class="range" role="group" aria-label="Rentang waktu grafik">
+        <button type="button" class="rangeBtn active" data-minutes="15" aria-pressed="true">15 mnt</button>
+        <button type="button" class="rangeBtn" data-minutes="60" aria-pressed="false">1 jam</button>
+        <button type="button" class="rangeBtn" data-minutes="360" aria-pressed="false">6 jam</button>
+        <button type="button" class="rangeBtn" data-minutes="1440" aria-pressed="false">24 jam</button>
+      </div>
+    </div>
+    <div class="trendGrid">
+      <div class="trend">
+        <span class="trendLabel"><span>CPU</span><span class="trendMeta" id="metaCPU">—</span></span>
+        <svg id="trendCPU" viewBox="0 0 420 90" preserveAspectRatio="none" role="img" aria-label="Grafik tren CPU">
+          <path class="area c1"></path><path class="line c1"></path>
+        </svg>
+      </div>
+      <div class="trend">
+        <span class="trendLabel"><span>RAM</span><span class="trendMeta" id="metaRAM">—</span></span>
+        <svg id="trendRAM" viewBox="0 0 420 90" preserveAspectRatio="none" role="img" aria-label="Grafik tren RAM">
+          <path class="area c2"></path><path class="line c2"></path>
+        </svg>
+      </div>
+      <div class="trend">
+        <span class="trendLabel"><span>Internet <span class="legend"><i class="swatch c1"></i>RX <i class="swatch c4"></i>TX</span></span><span class="trendMeta" id="metaNet">—</span></span>
+        <svg id="trendNet" viewBox="0 0 420 90" preserveAspectRatio="none" role="img" aria-label="Grafik tren internet unduh dan unggah">
+          <path class="area c1"></path><path class="line c1"></path>
+          <path class="area c4"></path><path class="line c4"></path>
+        </svg>
+      </div>
+      <div class="trend">
+        <span class="trendLabel"><span>Disk <span class="legend"><i class="swatch c3"></i>Baca <i class="swatch c4"></i>Tulis</span></span><span class="trendMeta" id="metaIO">—</span></span>
+        <svg id="trendIO" viewBox="0 0 420 90" preserveAspectRatio="none" role="img" aria-label="Grafik tren disk baca dan tulis">
+          <path class="area c3"></path><path class="line c3"></path>
+          <path class="area c4"></path><path class="line c4"></path>
+        </svg>
+      </div>
+      <div class="trend">
+        <span class="trendLabel"><span>Latensi disk <span class="legend"><i class="swatch c3"></i>Baca <i class="swatch c4"></i>Tulis</span></span><span class="trendMeta" id="metaLat">—</span></span>
+        <svg id="trendLat" viewBox="0 0 420 90" preserveAspectRatio="none" role="img" aria-label="Grafik tren latensi disk">
+          <path class="area c3"></path><path class="line c3"></path>
+          <path class="area c4"></path><path class="line c4"></path>
+        </svg>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="footer">
+  <a id="footLeft" class="footLink" href="/releases.html" title="Catatan rilis">DMetric</a>
+  <span id="footRight"></span>
+</footer>
+
+<dialog id="settingsDialog" aria-labelledby="settingsTitle">
+  <form id="settingsForm" method="dialog">
+    <div class="dialogHead">
+      <div>
+        <h2 id="settingsTitle">Pengaturan</h2>
+        <p class="dialogSub">Port dan interval butuh restart. Ambang, aplikasi fokus, probe jaringan, dan pilihan interface berlaku langsung.</p>
+      </div>
+      <button type="button" class="iconBtn" id="closeSettings" aria-label="Tutup">✕</button>
+    </div>
+    <div class="dialogBody">
+    <div class="formGrid">
+      <label>Port web
+        <input type="number" name="port" min="1" max="65535" required>
+        <small id="portNote"></small>
+      </label>
+      <label>Interval sampling (detik)
+        <input type="number" name="interval_seconds" min="1" max="60" required>
+        <small id="intervalNote"></small>
+      </label>
+    </div>
+    <div class="formSection">Pemantauan</div>
+    <div class="formGrid">
+      <label class="span2">Aplikasi fokus
+        <div class="combo">
+          <div class="comboChips" id="watchChips"></div>
+          <input type="text" id="watchSearch" placeholder="Cari proses atau ketik pola…" autocomplete="off" aria-label="Cari aplikasi fokus">
+          <div class="comboMenu" id="watchMenu" hidden></div>
+        </div>
+        <input type="hidden" name="watch_apps">
+        <small>Pilih beberapa proses; pola adalah potongan nama (maks. 8).</small>
+      </label>
+      <label>Preset aplikasi fokus
+        <select id="appPreset">
+          <option value="chromeleon, sqlservr">Chromeleon + SQL Server</option>
+          <option value="sqlservr">SQL Server</option>
+          <option value="nginx, apache, httpd, node, php-fpm">Web server</option>
+          <option value="docker, containerd, wsl">Docker / WSL</option>
+          <option value="">Kosong / custom</option>
+        </select>
+        <small>Mengisi pilihan di atas.</small>
+      </label>
+      <label class="span2">Probe jaringan
+        <div class="combo">
+          <div class="comboChips" id="probeChips"></div>
+          <input type="text" id="probeSearch" placeholder="Cari port lokal atau ketik host:port…" autocomplete="off" aria-label="Cari target probe jaringan">
+          <div class="comboMenu" id="probeMenu" hidden></div>
+        </div>
+        <input type="hidden" name="network_probes">
+        <small id="probeNote">Berlaku langsung. Pilih port lokal atau ketik host:port SQL/PC client.</small>
+        <small id="probeHint"></small>
+      </label>
+    </div>
+    <div class="formSection">Interface jaringan</div>
+    <div class="ifaceList" id="ifaceList"><span class="sub">Memuat…</span></div>
+    <small class="fieldHint">Kosong = semua interface non-loopback. Pilih NIC yang menghadap client/Chromeleon agar iSCSI/backup tidak mengaburkan angka Internet.</small>
+    <div class="formSection">Ambang alert</div>
+    <div class="formGrid">
+      <label>CPU sistem (%)
+        <input type="number" name="cpu_percent" min="1" max="100" step="0.1" required></label>
+      <label>RAM sistem (%)
+        <input type="number" name="memory_percent" min="1" max="100" step="0.1" required></label>
+      <label>Penyimpanan (%)
+        <input type="number" name="storage_percent" min="1" max="100" step="0.1" required></label>
+      <label>Baca disk (MB/s)
+        <input type="number" name="disk_read_mbps" min="1" step="0.1" required></label>
+      <label>Tulis disk (MB/s)
+        <input type="number" name="disk_write_mbps" min="1" step="0.1" required></label>
+      <label>Unduh jaringan (MB/s)
+        <input type="number" name="net_rx_mbps" min="1" step="0.1" required></label>
+      <label>Unggah jaringan (MB/s)
+        <input type="number" name="net_tx_mbps" min="1" step="0.1" required></label>
+      <label>Load per core
+        <input type="number" name="load_per_core" min="0.1" step="0.1" required></label>
+      <label>CPU satu proses (%)
+        <input type="number" name="process_cpu_percent" min="1" max="10000" step="0.1" required></label>
+      <label>RAM satu proses (MB)
+        <input type="number" name="process_memory_mb" min="1" step="1" required></label>
+      <label>Durasi langgar (detik)
+        <input type="number" name="sustain_seconds" min="5" max="600" step="1" required></label>
+      <label>Durasi pulih (detik)
+        <input type="number" name="recovery_seconds" min="5" max="600" step="1" required></label>
+    </div>
+    </div>
+    <div class="dialogFoot">
+      <span class="dialogMeta" id="settingsMeta"></span>
+      <span class="spacer"></span>
+      <button type="button" class="btn" id="cancelSettings">Batal</button>
+      <button type="submit" class="btn primary">Simpan</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="updateDialog" aria-labelledby="updateTitle">
+  <div class="dialogHead">
+    <div>
+      <h2 id="updateTitle">Pembaruan</h2>
+      <p class="dialogSub">Dari rilis GitHub publik. Aplikasi akan restart setelah update.</p>
+    </div>
+    <button type="button" class="iconBtn" id="closeUpdate" aria-label="Tutup">✕</button>
+  </div>
+  <div class="dialogBody">
+  <div class="updateGrid">
+    <div><span class="eyebrow">Terpasang</span><strong id="upCurrent">—</strong></div>
+    <div><span class="eyebrow">Terbaru</span><strong id="upLatest">—</strong></div>
+  </div>
+  <div class="updateStatus" id="upStatus" role="status">Memeriksa rilis…</div>
+  <div class="sub" id="upAsset"></div>
+  <pre class="updateNotes" id="upNotes"></pre>
+  <a id="upRelease" target="_blank" rel="noopener" hidden>Lihat rilis di GitHub →</a>
+  </div>
+  <div class="dialogFoot">
+    <span class="dialogMeta" id="upMeta"></span>
+    <span class="spacer"></span>
+    <a class="btn" href="/releases.html">Catatan rilis</a>
+    <button type="button" class="btn" id="upCheck">Cek lagi</button>
+    <button type="button" class="btn primary" id="upInstall" disabled>Update &amp; restart</button>
+  </div>
+</dialog>
+
+<div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+<script src="/app.js"></script>
+</body>
+</html>

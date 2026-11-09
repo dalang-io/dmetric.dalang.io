@@ -1,0 +1,20 @@
+{
+  "name": "DMetric",
+  "slug": "dmetric",
+  "identifier": "io.dalang.dmetric",
+  "version": "2026.11.1",
+  "publisher": "Dalang Pte Ltd",
+  "copyright": "© 2026 Dalang Pte Ltd",
+  "icon": "resources/icon.png",
+  "macos": {
+    "minimumSystemVersion": "12.0"
+  },
+  "windows": {
+    "displayName": "DMetric"
+  },
+  "linux": {
+    "comment": "Resource monitor for CPU, RAM, storage, network, disk I/O, ports and processes",
+    "categories": ["System", "Monitor"],
+    "command": ["dmetric"]
+  }
+}

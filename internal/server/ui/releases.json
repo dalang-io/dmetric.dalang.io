@@ -1,0 +1,59 @@
+{
+  "releases": [
+    {
+      "version": "2026.11.1",
+      "released": true,
+      "date": "2026-11-10",
+      "title": "UI enterprise, SMART bawaan, dan identitas disk yang stabil",
+      "groups": [
+        {
+          "kind": "added",
+          "items": [
+            "Pembaca SMART ATA bawaan (SG_IO): health, suhu, wear, jam nyala, atribut lengkap beserta ambangnya terbaca tanpa smartmontools. Perlu root.",
+            "Tabel detail SMART per disk (klik nama disk): semua atribut ATA dengan nilai, worst, ambang, nilai mentah, dan status; untuk NVMe lengkap dengan data ditulis/dibaca, unsafe shutdown, power cycle, spare, dan sensor suhu.",
+            "Fallback NVMe lewat nvme-cli bila smartctl tidak ada.",
+            "Dukungan drive fisik di belakang RAID MegaRAID/PERC lewat smartctl (eksperimental, belum diuji di perangkat keras nyata).",
+            "Halaman catatan rilis dan tampilan versi tag di dashboard."
+          ]
+        },
+        {
+          "kind": "changed",
+          "items": [
+            "Disk dan volume diidentifikasi dengan ID stabil (WWN / by-id), bukan sda/sdb yang berubah setiap boot. Nama kernel hanya muncul di tooltip.",
+            "Disk Ceph RBD, loop, dan perangkat virtual lain tidak lagi tampil sebagai disk fisik, volume, atau ikut dijumlahkan ke I/O disk.",
+            "Virtual disk RAID (mis. Dell PERC) diberi label RAID virtual, bukan HDD/SSD.",
+            "Tampilan dirombak: topbar tetap di atas, kartu status CPU/RAM/penyimpanan berwarna sesuai ambang, grafik tren dengan nilai puncak, dialog dengan header dan footer tetap.",
+            "Aksesibilitas: kontras teks memenuhi WCAG AA, indikator fokus keyboard, tautan lewati ke konten, navigasi panah di menu pilihan, dan dukungan reduced-motion."
+          ]
+        },
+        {
+          "kind": "fixed",
+          "items": [
+            "Wear dan media error NVMe tidak pernah terisi saat memakai smartctl (struktur JSON salah dibaca).",
+            "Health yang tidak bisa dibaca sekarang ditampilkan sebagai tidak diketahui beserta alasannya, bukan diam-diam terlihat normal.",
+            "Dialog Pembaruan tidak lagi menempel ke tepi."
+          ]
+        }
+      ]
+    },
+    {
+      "version": "2026.11.0",
+      "released": true,
+      "date": "",
+      "title": "Rilis awal",
+      "groups": [
+        {
+          "kind": "added",
+          "items": [
+            "Dashboard diagnosis server: CPU, RAM, penyimpanan, jaringan, disk I/O (latensi dan antrean), port, proses, dan aplikasi fokus.",
+            "Panel diagnosis yang menyebut tersangka utama dan langkah berikutnya.",
+            "Alert dengan ambang yang bisa diatur, riwayat alert, dan laporan insiden JSON.",
+            "Kesehatan hardware: sistem, CPU, RAM, GPU, fan, PSU, dan disk fisik.",
+            "Pembaruan dari rilis GitHub dengan verifikasi checksum.",
+            "Satu binary tanpa cgo untuk macOS, Linux, dan Windows."
+          ]
+        }
+      ]
+    }
+  ]
+}

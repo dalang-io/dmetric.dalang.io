@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DMetric — Catatan rilis</title>
+<meta name="color-scheme" content="light">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<a class="skip" href="#main">Lewati ke konten</a>
+<header class="topbarWrap">
+<div class="topbar">
+  <div class="brand">
+    <span class="logo" aria-hidden="true">
+      <svg viewBox="0 0 40 40" width="30" height="30">
+        <rect width="40" height="40" rx="11" fill="var(--accent)"/>
+        <path d="M10 27a10 10 0 1 1 20 0" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+        <path d="M20 27l6-8" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+        <circle cx="20" cy="27" r="2.6" fill="#fff"/>
+      </svg>
+    </span>
+    <div class="brandText">
+      <h1>DMetric</h1>
+      <p>Catatan rilis</p>
+    </div>
+  </div>
+  <div class="hostline"><span id="verLine">Memuat versi…</span></div>
+  <div class="topActions">
+    <a class="actionBtn" href="/">← Dashboard</a>
+  </div>
+</div>
+</header>
+
+<main id="main" class="releasePage">
+  <section class="card releaseNow" aria-live="polite">
+    <div class="eyebrow">Versi terpasang</div>
+    <div class="releaseNowRow">
+      <strong class="releaseTag" id="nowTag">—</strong>
+      <span class="badge ended" id="nowBadge" hidden></span>
+    </div>
+    <p class="sub" id="nowSub"></p>
+    <div class="releaseUpdate" id="updateBox" hidden>
+      <div class="eyebrow">Rilis terbaru di GitHub</div>
+      <strong class="releaseTag" id="ghTag">—</strong>
+      <p class="sub" id="ghMeta"></p>
+      <pre class="updateNotes" id="ghNotes"></pre>
+      <a id="ghLink" target="_blank" rel="noopener" hidden>Lihat rilis di GitHub →</a>
+    </div>
+  </section>
+
+  <div id="releaseList" class="releaseList"></div>
+  <p class="warnings" id="releaseError" hidden></p>
+</main>
+
+<footer class="footer">
+  <span>DMetric <span id="footTag"></span></span>
+  <a href="/">Kembali ke dashboard</a>
+</footer>
+<script src="/releases.js"></script>
+</body>
+</html>
