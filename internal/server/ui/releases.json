@@ -1,6 +1,28 @@
 {
   "releases": [
     {
+      "version": "2026.11.5",
+      "released": true,
+      "date": "2026-11-10",
+      "title": "Dashboard desktop lebih padat",
+      "groups": [
+        {
+          "kind": "changed",
+          "items": [
+            "Layout desktop memakai lebar hingga 1920px; chart KPI mengisi tinggi kartu sehingga tidak ada ruang kosong besar di bawah CPU/RAM.",
+            "Kartu Port dipindah ke baris Volume, Aplikasi, dan Latensi menjadi empat kolom, menghilangkan baris orphan yang menyisakan empat kolom kosong."
+          ]
+        },
+        {
+          "kind": "fixed",
+          "items": [
+            "Penyimpanan sistem memakai gauge kapasitas yang mengisi kartu; sisa bebas tampil di tengah gauge.",
+            "Riwayat alert kosong memakai empty-state terpusat, bukan tabel kosong setinggi kartu Proses."
+          ]
+        }
+      ]
+    },
+    {
       "version": "2026.11.4",
       "released": true,
       "date": "2026-11-10",

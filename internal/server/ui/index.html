@@ -119,8 +119,11 @@
       </div>
       <div class="big"><span class="value" id="storageValue">—</span><span class="unit">%</span></div>
       <div class="sub" id="storageSub">—</div>
-      <div class="bar" role="progressbar" aria-label="Pemakaian penyimpanan" aria-valuemin="0" aria-valuemax="100" id="storageBarWrap">
-        <span id="storageBar"></span>
+      <div class="storageGauge" id="storageGauge" role="progressbar" aria-label="Pemakaian penyimpanan" aria-valuemin="0" aria-valuemax="100">
+        <div class="storageGaugeHole">
+          <strong id="storageFree">—</strong>
+          <span>bebas</span>
+        </div>
       </div>
     </article>
 
@@ -163,20 +166,6 @@
       </svg>
     </article>
 
-    <article class="card">
-      <div class="cardHead">
-        <h2>Port</h2>
-        <span class="tag" id="portsTag">—</span>
-      </div>
-      <div class="big small"><span class="value" id="portsValue">—</span><span class="unit">terbuka</span></div>
-      <div class="sub" id="portsSub">TCP listen · UDP bound</div>
-      <div class="listBlock portsList">
-        <table class="table compact" aria-label="Port yang terbuka">
-          <thead><tr><th>Proto</th><th>Port</th><th>Bind</th><th>Proses</th></tr></thead>
-          <tbody id="portsBody"><tr><td colspan="4" class="empty">Menunggu data…</td></tr></tbody>
-        </table>
-      </div>
-    </article>
   </section>
 
   <section class="grid three">
@@ -218,6 +207,21 @@
         <table class="table compact" aria-label="Latensi jaringan">
           <thead><tr><th>Target</th><th>Jenis</th><th class="num">RTT</th><th class="num">Loss</th><th>Status</th></tr></thead>
           <tbody id="probesBody"><tr><td colspan="5" class="empty">Menunggu data…</td></tr></tbody>
+        </table>
+      </div>
+    </article>
+
+    <article class="card">
+      <div class="cardHead">
+        <h2>Port</h2>
+        <span class="tag" id="portsTag">—</span>
+      </div>
+      <div class="big small"><span class="value" id="portsValue">—</span><span class="unit">terbuka</span></div>
+      <div class="sub" id="portsSub">TCP listen · UDP bound</div>
+      <div class="listBlock portsList">
+        <table class="table compact" aria-label="Port yang terbuka">
+          <thead><tr><th>Proto</th><th>Port</th><th>Bind</th><th>Proses</th></tr></thead>
+          <tbody id="portsBody"><tr><td colspan="4" class="empty">Menunggu data…</td></tr></tbody>
         </table>
       </div>
     </article>
@@ -297,10 +301,15 @@
         <span class="tag" id="alertTag">—</span>
       </div>
       <div class="sub">Ambang dilanggar selama beberapa detik berturut-turut sebelum alert dibuat.</div>
-      <div class="listBlock tall">
+      <div class="emptyState" id="alertsEmpty">
+        <span class="emptyMark" aria-hidden="true">✓</span>
+        <strong>Belum ada alert</strong>
+        <p>Ambang CPU, RAM, penyimpanan, dan hardware belum terlampaui. Riwayat akan muncul di sini.</p>
+      </div>
+      <div class="listBlock tall" id="alertsBlock" hidden>
         <table class="table" aria-label="Riwayat alert">
           <thead><tr><th>Waktu</th><th>Tingkat</th><th>Pesan</th><th>Status</th></tr></thead>
-          <tbody id="alertsBody"><tr><td colspan="4" class="empty">Belum ada alert.</td></tr></tbody>
+          <tbody id="alertsBody"></tbody>
         </table>
       </div>
     </article>

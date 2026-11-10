@@ -436,9 +436,11 @@
     const st = snap.storage;
     $("storageValue").textContent = fmtPct(st.percent);
     $("storageTag").textContent = st.mount || "/";
-    $("storageSub").textContent = `${fmtBytes(st.used)} / ${fmtBytes(st.total)} · bebas ${fmtBytes(st.free)}`;
-    $("storageBar").style.width = `${Math.min(100, Math.max(0, st.percent))}%`;
-    $("storageBarWrap").setAttribute("aria-valuenow", String(Math.round(st.percent)));
+    $("storageSub").textContent = `${fmtBytes(st.used)} / ${fmtBytes(st.total)}`;
+    const storagePct = Math.min(100, Math.max(0, st.percent));
+    $("storageFree").textContent = fmtBytes(st.free);
+    $("storageGauge").style.setProperty("--pct", String(storagePct));
+    $("storageGauge").setAttribute("aria-valuenow", String(Math.round(storagePct)));
 
     const net = snap.network;
     $("rxValue").textContent = fmtRate(net.rx_bytes_per_sec);
@@ -1075,12 +1077,12 @@
     $("alertTag").textContent = alerts.length
       ? `${active} aktif · ${alerts.length} tercatat`
       : "Belum ada";
+    const empty = $("alertsEmpty");
+    const block = $("alertsBlock");
+    empty.hidden = alerts.length > 0;
+    block.hidden = alerts.length === 0;
     if (!alerts.length) {
-      const tr = document.createElement("tr");
-      const td = el("td", "empty", "Belum ada alert. Semua metrik dalam batas normal.");
-      td.colSpan = 4;
-      tr.appendChild(td);
-      body.replaceChildren(tr);
+      body.replaceChildren();
       return;
     }
     const frag = document.createDocumentFragment();

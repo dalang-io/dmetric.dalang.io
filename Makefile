@@ -1,5 +1,5 @@
 APP     := dmetric
-VERSION ?= 2026.11.4
+VERSION ?= 2026.11.5
 LDFLAGS := -s -w -X dmetric.dalang.io/internal/model.Version=$(VERSION)
 
 .PHONY: run web test build cross icon clean release release-check
