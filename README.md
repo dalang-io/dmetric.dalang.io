@@ -119,6 +119,14 @@ pilihan interface berlaku langsung. Flag/environment mengunci port/interval.
 
 Data: `dmetric.db` (SQLite, WAL). Sampel 7 hari, alert 30 hari.
 
+## Prasyarat
+
+Tombol **Prasyarat** di header memeriksa agar aplikasi berjalan lancar:
+direktori data dapat ditulis, ruang disk, hak administrator/root, WebView
+desktop, PowerShell/CIM, counter disk Windows, akses GitHub untuk update, dan
+tool hardware opsional (smartctl/nvme/ssacli/ipmitool). Setiap temuan berisi
+tindakan perbaikan; ini bukan pengganti dokumentasi instalasi.
+
 ## Fitur diagnosis
 
 - **Panel Diagnosis**: peringkat tersangka dari sampel terakhir + 2 menit
@@ -159,9 +167,23 @@ dan hanya Linux/FreeBSD/macOS — tidak berjalan di Windows Server 2019):
 
 | Platform | Sumber | Isi |
 |---|---|---|
-| Windows | CIM/PowerShell (`Win32_Processor`/`VideoController`/`Fan`/`PowerSupply`, `Get-PhysicalDisk`, `Get-StorageReliabilityCounter`, WHEA), opsional `ipmitool` | board/BIOS/serial, CPU (ID/suhu ACPI), DIMM, GPU/NPU, fan, PSU, disk health/wear/temp/POH/errors/serial |
-| Linux | sysfs DMI, `/proc`, hwmon, EDAC, dmidecode (root), lspci, smartctl, opsional `ipmitool` | board/BIOS, CPU serial/temp, DIMM, GPU/NPU, fan, PSU, ECC CE/UE, SMART |
+| Windows | CIM/PowerShell (`Win32_Processor`/`VideoController`/`Fan`/`PowerSupply`, `Get-PhysicalDisk`, `Get-StorageReliabilityCounter`, WHEA), SMART ATA bawaan (`IOCTL_ATA_PASS_THROUGH`), opsional `ssacli` dan `ipmitool` | board/BIOS/serial, CPU (ID/suhu ACPI), DIMM, GPU/NPU, fan, PSU, disk dengan ID stabil (`UniqueId`), health/wear/temp/POH/errors, atribut SMART |
+| Linux | sysfs DMI, `/proc`, hwmon, EDAC, dmidecode (root), lspci, **SMART ATA bawaan (SG_IO)**, `nvme-cli`, opsional `smartctl`, `ssacli`, `ipmitool` | board/BIOS, CPU serial/temp, DIMM, GPU/NPU, fan, PSU, ECC CE/UE, disk dengan ID stabil (WWN/by-id), tabel SMART lengkap |
 | macOS | `system_profiler` (`SPHardware`, `SPMemory`, `SPStorage`, `SPNVMe`, `SPSerialATA`, `SPDisplays`) | hardware overview, RAM, GPU (merek/ukuran), disk SMART ringkas |
+
+Poin utama:
+
+- **Disk diidentifikasi dengan ID stabil** (WWN / by-id di Linux, `UniqueId`
+  di Windows), bukan `sda`/`sdb` yang berubah tiap boot.
+- **Hanya disk fisik.** Ceph RBD, loop, LVM/md, dan perangkat virtual lain tidak
+  ditampilkan dan tidak ikut dijumlahkan ke I/O disk.
+- **Tabel SMART lengkap**: klik nama disk untuk melihat semua atribut (nilai,
+  worst, ambang, mentah, status); NVMe menampilkan seluruh log kesehatan.
+- **SMART tanpa smartmontools**: dibaca langsung oleh DMetric (butuh root /
+  Administrator). Bila health tidak terbaca, UI menampilkan "Tidak diketahui"
+  beserta alasannya, tidak pernah diam-diam "Normal".
+- **HPE Smart Array** lewat `ssacli`: drive fisik di balik RAID, status logical
+  drive (degraded/rebuilding), serta status controller, cache, dan baterai.
 
 Status **Normal/Waspada/Kritis** didasarkan pada health controller, wear ≥80/90%,
 suhu disk ≥60/70°C, suhu CPU ≥85/95°C, ECC uncorrectable, WHEA error, dan error
@@ -169,10 +191,14 @@ baca/tulis. Temuan hardware masuk ke panel diagnosis dengan prioritas di atas
 saturasi resource: disk yang gagal atau array degraded adalah penyebab, bukan
 gejala.
 
-Batas:
+> **Status verifikasi.** Linux (SATA, NVMe, filter RBD, ID stabil) sudah
+> diuji di perangkat keras nyata. **Windows dan `ssacli` belum pernah dijalankan
+> di perangkat keras nyata**: kodenya terkompilasi dan parsernya diuji dengan
+> fixture buatan. Detail, batas, dan cara menyumbang output perangkat keras
+> nyata ada di [docs/hardware-health.md](docs/hardware-health.md).
 
-- HPE Smart Array sering hanya mengekspos logical volume ke Windows; status
-  cache battery/rebuild tetap di iLO/SSA atau `ssacli ctrl all show config`.
+Batas lain:
+
 - Di Windows, jalankan sebagai Administrator; PowerShell/CIM bisa dibatasi
   kebijakan. Storage counter kosong akan memunculkan peringatan.
 - ECC di Linux dari EDAC (butuh driver/root); Windows tidak memberi ECC counter
@@ -185,11 +211,11 @@ Batas:
   hwmon dan `ipmitool`; HPE ProLiant biasanya perlu iLO/`ipmitool` (driver
   IPMI, root). macOS tidak mengekspos fan/PSU. Tanpa data, baris disembunyikan
   dan alasannya ada di notes.
+- Drive di belakang RAID non-HPE (mis. Dell PERC) belum terbaca; virtual
+  disk-nya diberi label "RAID virtual". `smartctl -d megaraid,N` dipakai bila
+  smartctl terpasang (belum teruji di perangkat keras).
 - dcheck punya fitur di luar monitoring (fake-capacity test, recovery/undelete,
   SMART self-test/bench) yang **tidak** dimasukkan ke dashboard realtime.
-- Provider Windows diuji compile + fixture JSON parser di sini (host macOS);
-  jalankan sekali di Server 2019 sebagai Administrator untuk memastikan
-  `Get-PhysicalDisk`/`Get-StorageReliabilityCounter` memberi data.
 
 ## Ambang alert bawaan
 
@@ -221,25 +247,23 @@ dan 1,25× ambang untuk throughput. Lonjakan sesaat tidak memicu alert.
 Diagnosis hanya memakai latensi/antrean disk untuk menuduh storage; throughput
 tinggi dengan latensi normal diberi catatan informasi, bukan tersangka.
 
-## Pembaruan otomatis
+## Pembaruan
 
-Tombol **Update** di header memeriksa rilis terbaru dari
-`github.com/dalang-io/dmetric.dalang.io`, mengunduh asset
-`dmetric-<os>-<arch>[.exe]`, memverifikasi `SHA256SUMS` bila tersedia, lalu
-memasang dan restart. Versi memakai **CalVer tahun**, misalnya
-`v2026.11.0` (tag `vYYYY.M.P`).
+Diatur di **Pengaturan → Pembaruan**:
 
-- Hanya bisa dipicu dari **localhost**; klik dari server/RDP. Ini mencegah
-  client LAN memicu penggantian binary.
-- Berlaku untuk binary standalone (cara server Windows dijalankan). Build via
-  `go run` ditolak; aplikasi macOS `.app` dibundel juga ditolak (unduh DMG),
-  dan service manager bisa perlu restart manual setelah helper mengganti file.
-- Unduhan masuk `<data>/updates/<versi>/`; checksum divalidasi. Rilis tanpa
-  `SHA256SUMS` tetap bisa dipasang dengan peringatan integritas hanya HTTPS.
-- Repo/fork lain: `-update-repo owner/name` atau `DMETRIC_UPDATE_REPO`.
-- Workflow `.github/workflows/release.yml` membangun 6 binary + `SHA256SUMS`
-  saat tag CalVer di-push. Repo harus publik dan punya minimal satu release
-  agar tombol menemukan update.
+| Mode | Perilaku |
+|---|---|
+| **Manual** (bawaan) | tidak menghubungi GitHub sendiri; tombol **Update** di header memeriksa dan memasang saat diklik |
+| **Cek otomatis** | memeriksa sekali setelah startup lalu tiap *N* jam (bawaan **24 jam**); hanya memberi tahu |
+| **Pasang otomatis** | seperti di atas, lalu mengunduh, memverifikasi SHA256, memasang, dan restart |
+
+Pengaman pemasangan otomatis: SHA256 **wajib**; versi yang sudah dicoba tidak
+diulang dalam 24 jam; binary lama disimpan sebagai `<binary>.prev`; tidak
+berjalan untuk `go run` maupun app macOS `.app` (hanya memeriksa); dan
+pengaturannya **hanya bisa diubah dari localhost**, sama seperti tombol Update.
+Versi memakai **CalVer**, mis. `v2026.11.0` (tag `vYYYY.M.P`). Repo/fork lain:
+`-update-repo owner/name` atau `DMETRIC_UPDATE_REPO`. Selengkapnya (macOS,
+Windows, rollback, API) di [docs/updates.md](docs/updates.md).
 
 ## Versi dan catatan rilis
 
@@ -247,21 +271,21 @@ Versi tag (`v2026.11.0`) tampil di samping nama di header dan di footer;
 klik untuk membuka halaman **Catatan rilis** (`/releases.html`). Halaman itu
 membaca `internal/server/ui/releases.json` yang ikut di-embed ke binary, jadi
 tetap bisa dibuka di server tanpa internet, dan menambahkan catatan rilis
-terbaru dari GitHub bila server bisa menjangkaunya.
-
-Saat menyiapkan rilis: tambahkan entri baru di bagian atas `releases.json`
-(`version` tanpa `v`, isi `"released": true` dan `date` `YYYY-MM-DD`), lalu
-push tag `vYYYY.M.P` yang sama. `go test ./internal/server` memeriksa format
-berkas itu.
+terbaru dari GitHub bila server bisa menjangkaunya. Berkas yang sama menjadi
+teks rilis GitHub. Cara membuat rilis: [docs/releasing.md](docs/releasing.md).
 
 ## Build
 
 ```sh
 make test     # unit test
 make cross    # binary darwin/linux/windows × amd64/arm64 di dist/
-make build    # paket desktop platform ini lewat MyGo CLI
+make build    # paket desktop platform ini lewat MyGo CLI (.app + .dmg di macOS)
 make icon     # gambar ulang resources/icon.png
+make release  # rilis manual: 6 binary + DMG macOS arm64/Intel + SHA256SUMS + catatan
 ```
+
+`make release` tidak memakai CI dan tidak mengunggah apa pun; hasilnya ada di
+`dist/release/v<versi>/` (lihat [docs/releasing.md](docs/releasing.md)).
 
 `make cross` menghasilkan:
 
@@ -274,7 +298,8 @@ dist/dmetric-windows-arm64.exe dist/dmetric-windows-amd64.exe
 Aplikasi pure Go (tanpa cgo), jadi setiap target dapat dibangun dari mesin mana
 pun. Konfigurasi paket desktop ada di `mygo.json`; `go tool mygo build` membuat
 `.app`/`.dmg` di macOS, installer di Windows, dan paket Linux sesuai platform.
-Kebutuhan runtime desktop: WKWebView (macOS), WebView2 (Windows), GTK 3 +
+DMG macOS memakai *ad-hoc signature*; di Mac lain Gatekeeper meminta konfirmasi
+saat pertama dibuka. Kebutuhan runtime desktop: WKWebView (macOS), WebView2 (Windows), GTK 3 +
 WebKitGTK 4.1 (Linux). Mode `-no-window` tidak membutuhkan keduanya.
 
 ## API
@@ -288,9 +313,9 @@ WebKitGTK 4.1 (Linux). Mode `-no-window` tidak membutuhkan keduanya.
 | `GET /api/alerts?limit=100` | riwayat alert |
 | `POST /api/alerts/{id}/ack` | tandai alert dibaca |
 | `GET /api/settings` | pengaturan, port efektif, status restart |
-| `PUT /api/settings` | simpan port, interval, ambang, aplikasi fokus, probe, interface |
+| `PUT /api/settings` | simpan port, interval, ambang, aplikasi fokus, probe, interface, dan kebijakan `update` (yang terakhir hanya dari localhost) |
 | `GET /api/health` | status server/versi; dipakai mengukur RTT browser |
-| `GET /api/update?refresh=1` | cek rilis GitHub terbaru |
+| `GET /api/update?refresh=1` | cek rilis GitHub terbaru + status pembaruan otomatis (`auto`) |
 | `POST /api/update/install` | unduh/pasang update; hanya dari localhost |
 
 Contoh `PUT /api/settings`:
@@ -341,18 +366,36 @@ untuk diakses dari PC client, lindungi dengan firewall/VPN atau reverse proxy
 berautentikasi. Halaman memakai CSP `default-src 'self'`, tanpa aset eksternal,
 dan API menerima JSON maksimal 64 KiB. Data proses/port bisa sensitif.
 
+Pemasangan update mengganti binary di server, jadi tombol Update dan
+**pengaturan pembaruan** hanya diterima dari localhost; client LAN mendapat
+`403`. Pemasangan otomatis mewajibkan checksum SHA256 dan tidak pernah
+berjalan bila Anda tidak mengaktifkannya (bawaan: manual).
+
 ## Struktur
 
 ```
 main.go                     flag/env, SQLite, monitor, server, jendela MyGo
 internal/model/             tipe data, pengaturan, validasi
 internal/store/             SQLite: settings, samples, alerts, prune
-internal/hardware/          health board/CPU/RAM/disk: Windows CIM, Linux, macOS
-internal/update/            GitHub release checker + binary installer/restart
+internal/hardware/          health board/CPU/RAM/disk: Windows CIM, Linux, macOS;
+                            SMART ATA bawaan (SG_IO / IOCTL), nvme-cli, ssacli (HPE)
+internal/diskid/            ID disk stabil (by-id/WWN) dan filter disk virtual (RBD, loop, dm)
+internal/update/            GitHub release checker, installer/restart, updater otomatis
 internal/monitor/           collector, prober jaringan, mesin alert, diagnosis,
                             loop + SSE hub
 internal/server/            HTTP API, SSE, header keamanan, aset embed
 internal/server/ui/         index.html, style.css, app.js (tema terang)
 tools/icongen/              generator ikon 1024×1024 dengan stdlib
+tools/relnotes/             render + validasi catatan rilis dari releases.json
+scripts/release.sh          build rilis manual (binary, DMG, checksum, catatan)
+scripts/bump-version.sh     menyamakan versi di Makefile, mygo.json, model.go
+docs/                       hardware-health.md, updates.md, releasing.md
 mygo.json                   konfigurasi paket desktop MyGo
 ```
+
+
+## Lisensi
+
+Kode DMetric dilisensikan di bawah **BSD 3-Clause**, lisensi yang sama dengan
+Go. Teks lengkap ada di [LICENSE](LICENSE). Copyright © 2026 Dalang Pte Ltd ·
+[dalang.io](https://dalang.io).

@@ -16,13 +16,21 @@ import (
 	"unicode/utf16"
 )
 
+// selfInstallBlocker explains why exe cannot be replaced in place.
+func selfInstallBlocker(exe string) error {
+	if strings.Contains(strings.ToLower(exe), "go-build") {
+		return errors.New("update otomatis membutuhkan binary hasil build, bukan `go run`")
+	}
+	return nil
+}
+
 func installUpdate(downloaded string) (func() error, error) {
 	exe, err := os.Executable()
 	if err != nil {
 		return nil, fmt.Errorf("menemukan executable: %w", err)
 	}
-	if strings.Contains(strings.ToLower(exe), "go-build") {
-		return nil, errors.New("update otomatis membutuhkan binary hasil build, bukan `go run`")
+	if err := selfInstallBlocker(exe); err != nil {
+		return nil, err
 	}
 	// Prove the install directory is writable before spawning a helper that
 	// would otherwise fail silently after the old process exits.
@@ -37,6 +45,7 @@ $source=%s
 $oldPid=%d
 $working=%s
 while (Get-Process -Id $oldPid -ErrorAction SilentlyContinue) { Start-Sleep -Milliseconds 300 }
+try { Copy-Item -LiteralPath $target -Destination ($target + '.prev') -Force -ErrorAction Stop } catch {}
 for ($i=0; $i -lt 60; $i++) {
   try { Move-Item -LiteralPath $source -Destination $target -Force -ErrorAction Stop; break } catch { Start-Sleep -Seconds 1 }
 }

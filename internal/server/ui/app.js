@@ -20,6 +20,7 @@
     candidates: null,
     updateData: null,
     updateBusy: false,
+    prereqData: null,
     openDisks: new Set(),
   };
 
@@ -646,7 +647,7 @@
         } else {
           name.textContent = diskKey || "—";
         }
-        name.title = [disk.id, disk.model, disk.serial, disk.name ? `kernel: ${disk.name} (berubah tiap boot)` : ""]
+        name.title = [disk.id, disk.model, disk.serial, (disk.device || disk.name) ? `perangkat: ${disk.device || disk.name}` : ""]
           .filter(Boolean).join(" · ");
         const media = el("td", "mutedText", [disk.media, disk.bus].filter(Boolean).join(" · ") || "—");
         const health = el("td", "");
@@ -862,7 +863,8 @@
       if (volume.has_io) {
         const worst = Math.max(volume.read_latency_ms || 0, volume.write_latency_ms || 0);
         latency.textContent = `${fmtMs(volume.read_latency_ms)} / ${fmtMs(volume.write_latency_ms)}`;
-        latency.classList.add(latencyClass(worst));
+        const latClass = latencyClass(worst);
+        if (latClass) latency.classList.add(latClass);
         latency.title = `Baca ${fmtMs(volume.read_latency_ms)}, tulis ${fmtMs(volume.write_latency_ms)}`;
       } else {
         latency.textContent = "—";
@@ -1325,6 +1327,61 @@
     toast("Laporan insiden diunduh (JSON)");
   }
 
+  // ---------- prerequisites ----------
+
+  function renderPrereq() {
+    const report = state.prereqData;
+    const status = $("prereqStatus");
+    const list = $("prereqList");
+    if (!report) {
+      status.className = "updateStatus";
+      status.textContent = "Memeriksa prasyarat…";
+      list.replaceChildren();
+      return;
+    }
+    status.className = "updateStatus" + (report.status === "critical" ? " error" : report.status === "ok" ? " ok" : "");
+    status.textContent = report.status === "critical"
+      ? "Ada prasyarat yang harus diperbaiki."
+      : report.status === "warning"
+        ? "Aplikasi berjalan, tetapi ada prasyarat yang sebaiknya diperbaiki."
+        : "Semua prasyarat terpenuhi.";
+    const dot = $("prereqDot");
+    dot.hidden = report.status === "ok";
+    dot.classList.toggle("warn", report.status === "warning");
+    dot.classList.toggle("crit", report.status === "critical");
+    $("prereqMeta").textContent = `Diperiksa ${fmtClock(report.generated_at)}`;
+    const frag = document.createDocumentFragment();
+    for (const check of report.checks || []) {
+      const item = el("div", `prereqItem ${check.status || "info"}`);
+      item.appendChild(el("span", "reqDot"));
+      const body = el("div", "prereqBody");
+      body.appendChild(el("strong", "", check.title || check.id));
+      if (check.detail) body.appendChild(el("p", "", check.detail));
+      if (check.action) body.appendChild(el("p", "reqAction", `→ ${check.action}`));
+      item.appendChild(body);
+      frag.appendChild(item);
+    }
+    list.replaceChildren(frag);
+  }
+
+  async function checkPrereq(silent) {
+    const status = $("prereqStatus");
+    if (!silent) {
+      status.className = "updateStatus";
+      status.textContent = "Memeriksa prasyarat…";
+    }
+    try {
+      state.prereqData = await fetchJSON("/api/prerequisites", { cache: "no-store" });
+    } catch (err) {
+      state.prereqData = {
+        status: "critical",
+        generated_at: Date.now(),
+        checks: [{ id: "api", title: "Pemeriksaan prasyarat", status: "critical", detail: err.message, action: "Muat ulang halaman atau periksa server." }],
+      };
+    }
+    renderPrereq();
+  }
+
   // ---------- update ----------
 
   function renderUpdate() {
@@ -1357,6 +1414,14 @@
     if (info.asset_size) asset.push(fmtBytes(info.asset_size));
     if (info.checksum) asset.push("SHA256 tersedia");
     $("upAsset").textContent = asset.join(" · ");
+
+    const auto = info.auto || null;
+    const modeLabel = { manual: "manual", check: "cek otomatis", install: "pasang otomatis" };
+    const mode = state.settings && state.settings.settings.update ? state.settings.settings.update.mode : "manual";
+    let autoText = `Mode: ${modeLabel[mode] || mode}`;
+    if (auto && auto.last_check) autoText += ` · dicek ${fmtClock(Date.parse(auto.last_check))}`;
+    if (auto && auto.last_result) autoText += ` · ${auto.last_result}`;
+    $("upAuto").textContent = autoText;
 
     $("upNotes").textContent = info.notes || "";
     const release = $("upRelease");
@@ -1469,12 +1534,35 @@
     for (const field of THRESHOLD_FIELDS) {
       form.elements.namedItem(field).value = s.thresholds[field];
     }
+    const upd = s.update || { mode: "manual", interval_hours: 24 };
+    form.elements.namedItem("update_mode").value = upd.mode;
+    form.elements.namedItem("update_interval_hours").value = upd.interval_hours;
+    renderUpdatePolicyNote();
     $("portNote").textContent = view.port_locked
       ? "Ditetapkan oleh flag atau variabel lingkungan."
       : (view.effective_port !== s.port ? "Berlaku setelah restart." : "Aktif sekarang.");
     $("intervalNote").textContent = view.interval_locked
       ? "Ditetapkan oleh flag atau variabel lingkungan."
       : (view.effective_interval !== s.interval_seconds ? "Berlaku setelah restart." : "Aktif sekarang.");
+  }
+
+  // The update policy can only be changed on the server itself, like a
+  // manual install: it decides whether this machine replaces its own binary.
+  function renderUpdatePolicyNote() {
+    const form = $("settingsForm");
+    const local = !state.updateData || state.updateData.install_allowed !== false;
+    form.elements.namedItem("update_mode").disabled = !local;
+    form.elements.namedItem("update_interval_hours").disabled = !local;
+    const auto = (state.updateData && state.updateData.auto) || null;
+    let note = "";
+    if (!local) {
+      note = "Hanya dapat diubah dari server (localhost).";
+    } else if (form.elements.namedItem("update_mode").value === "install" && auto && !auto.can_install) {
+      note = `Perangkat ini tidak dapat memasang sendiri (${auto.block_reason}); hanya dicek, pasang manual.`;
+    } else if (form.elements.namedItem("update_mode").value === "install") {
+      note = "Binary lama disimpan sebagai .prev. Rilis tanpa SHA256 ditolak.";
+    }
+    $("updateModeNote").textContent = note;
   }
 
   function fillCandidates(settings) {
@@ -1559,6 +1647,10 @@
       watch_apps: splitList(form.elements.namedItem("watch_apps").value),
       network_probes: splitList(form.elements.namedItem("network_probes").value),
       network_interfaces: [...form.querySelectorAll('input[name="iface"]:checked')].map((input) => input.value),
+      update: {
+        mode: form.elements.namedItem("update_mode").value,
+        interval_hours: Math.round(num("update_interval_hours")),
+      },
     };
     state.settingsBusy = true;
     const submit = form.querySelector('button[type="submit"]');
@@ -1573,6 +1665,7 @@
       renderFooter();
       fillSettings();
       $("settingsDialog").close();
+      checkUpdate(false, true);
       toast(view.restart_required
         ? "Tersimpan. Port/interval berlaku setelah restart; aplikasi, probe, dan interface langsung aktif."
         : "Pengaturan tersimpan dan langsung aktif.");
@@ -1601,6 +1694,12 @@
   function wire() {
     $("settingsBtn").addEventListener("click", openSettings);
     $("captureBtn").addEventListener("click", captureIncident);
+    $("prereqBtn").addEventListener("click", () => {
+      $("prereqDialog").showModal();
+      checkPrereq(false);
+    });
+    $("closePrereq").addEventListener("click", () => $("prereqDialog").close());
+    $("prereqCheck").addEventListener("click", () => checkPrereq(false));
     $("updateBtn").addEventListener("click", openUpdate);
     $("closeUpdate").addEventListener("click", () => $("updateDialog").close());
     $("upCheck").addEventListener("click", () => checkUpdate(true, false));
@@ -1624,6 +1723,7 @@
     $("closeSettings").addEventListener("click", () => $("settingsDialog").close());
     $("cancelSettings").addEventListener("click", () => $("settingsDialog").close());
     $("settingsForm").addEventListener("submit", saveSettings);
+    $("updateMode").addEventListener("change", renderUpdatePolicyNote);
 
     document.querySelectorAll(".rangeBtn").forEach((button) => {
       button.addEventListener("click", async () => {
@@ -1663,6 +1763,7 @@
     await measureUI();
     connect();
     checkUpdate(false, true);
+    checkPrereq(true);
     setInterval(() => checkUpdate(false, true), 6 * 60 * 60 * 1000);
   }
 

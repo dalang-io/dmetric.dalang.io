@@ -48,6 +48,21 @@ func collect(ctx context.Context) model.Hardware {
 			hw.Memory.Total = vm.Total
 		}
 	}
+	// SMART the OS does not expose through StorageReliabilityCounter: read
+	// ATA SMART directly for SATA disks the OS sees (not RAID volumes).
+	for i := range hw.Storage {
+		disk := &hw.Storage[i]
+		bus := strings.ToLower(disk.Bus)
+		if disk.Device == "" || (bus != "sata" && bus != "ata") {
+			continue
+		}
+		if err := nativeATAHealth(disk, disk.Device); err != nil && disk.HealthNote == "" {
+			disk.HealthNote = "SMART bawaan gagal: " + shortError(err)
+		}
+	}
+	// HPE Smart Array: drives, logical drives and controller health.
+	mergeSSACLI(ctx, &hw)
+
 	ipmiFans, ipmiPSUs := collectIPMI(ctx, &hw.Notes)
 	hw.Fans = append(hw.Fans, ipmiFans...)
 	hw.PSUs = append(hw.PSUs, ipmiPSUs...)
@@ -75,8 +90,8 @@ func collect(ctx context.Context) model.Hardware {
 		if !reliability {
 			hw.Notes = append(hw.Notes, "StorageReliabilityCounter tidak memberi suhu/wear/POH; jalankan sebagai Administrator")
 		}
-		if raid {
-			hw.Notes = append(hw.Notes, "HPE Smart Array dapat hanya mengekspos logical volume; cek cache battery/rebuild di iLO/SSA")
+		if raid && !hasSSACLIData(hw.Storage) {
+			hw.Notes = append(hw.Notes, "RAID controller hanya mengekspos logical volume; install HPE ssacli untuk status drive fisik, cache, dan baterai")
 		}
 	}
 	finalize(&hw)
@@ -164,6 +179,8 @@ foreach ($d in @(Get-PhysicalDisk)) {
   $r = $d | Get-StorageReliabilityCounter
   $disks += [pscustomobject]@{
     FriendlyName      = [string]$d.FriendlyName
+    UniqueId          = [string]$d.UniqueId
+    DeviceId          = [string]$d.DeviceId
     MediaType         = [string]$d.MediaType
     BusType           = [string]$d.BusType
     Size              = $d.Size

@@ -12,6 +12,18 @@ import (
 	"syscall"
 )
 
+// selfInstallBlocker explains why exe cannot be replaced in place.
+func selfInstallBlocker(exe string) error {
+	lower := strings.ToLower(exe)
+	if strings.Contains(lower, ".app/contents/macos/") {
+		return errors.New("aplikasi macOS dibundel (.app); unduh DMG dari halaman rilis")
+	}
+	if strings.Contains(lower, "go-build") {
+		return errors.New("update otomatis membutuhkan binary hasil build, bukan `go run`")
+	}
+	return nil
+}
+
 func installUpdate(downloaded string) (func() error, error) {
 	exe, err := os.Executable()
 	if err != nil {
@@ -20,12 +32,8 @@ func installUpdate(downloaded string) (func() error, error) {
 	if resolved, err := filepath.EvalSymlinks(exe); err == nil {
 		exe = resolved
 	}
-	lower := strings.ToLower(exe)
-	if strings.Contains(lower, ".app/contents/macos/") {
-		return nil, errors.New("aplikasi macOS dibundel (.app); unduh DMG dari halaman rilis")
-	}
-	if strings.Contains(lower, "go-build") {
-		return nil, errors.New("update otomatis membutuhkan binary hasil build, bukan `go run`")
+	if err := selfInstallBlocker(exe); err != nil {
+		return nil, err
 	}
 	return installTo(downloaded, exe)
 }
@@ -56,6 +64,11 @@ func installTo(downloaded, target string) (func() error, error) {
 	if err := tmp.Close(); err != nil {
 		return nil, err
 	}
+	// Keep the running binary as <target>.prev so a bad release can be
+	// rolled back by hand (mv dmetric.prev dmetric).
+	if err := backupBinary(target); err != nil {
+		return nil, fmt.Errorf("membuat cadangan binary lama: %w", err)
+	}
 	if err := os.Rename(tmpName, target); err != nil {
 		return nil, fmt.Errorf("mengganti binary: %w", err)
 	}
@@ -63,4 +76,34 @@ func installTo(downloaded, target string) (func() error, error) {
 	return func() error {
 		return syscall.Exec(target, args, os.Environ())
 	}, nil
+}
+
+// backupBinary copies target to target+".prev", replacing an older backup.
+func backupBinary(target string) error {
+	src, err := os.Open(target)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return nil
+		}
+		return err
+	}
+	defer src.Close()
+	tmp, err := os.CreateTemp(filepath.Dir(target), ".dmetric-prev-*")
+	if err != nil {
+		return err
+	}
+	tmpName := tmp.Name()
+	defer os.Remove(tmpName)
+	if _, err := io.Copy(tmp, src); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Chmod(0o755); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	return os.Rename(tmpName, target+".prev")
 }

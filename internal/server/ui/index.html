@@ -42,6 +42,12 @@
       </svg>
       <span>Catat insiden</span>
     </button>
+    <button class="iconBtn prereqBtn" id="prereqBtn" type="button" title="Prasyarat aplikasi" aria-label="Prasyarat aplikasi">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M9 11l3 3 6-6"/><path d="M20 12a8 8 0 1 1-2.34-5.66"/>
+      </svg>
+      <span class="updateDot" id="prereqDot" hidden></span>
+    </button>
     <button class="iconBtn updateBtn" id="updateBtn" type="button" title="Pembaruan" aria-label="Pembaruan">
       <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v5h-5"/><path d="M12 8v7"/><path d="M9 12l3 3 3-3"/>
@@ -349,8 +355,14 @@
 </main>
 
 <footer class="footer">
-  <a id="footLeft" class="footLink" href="/releases.html" title="Catatan rilis">DMetric</a>
-  <span id="footRight"></span>
+  <div class="footGroup">
+    <a id="footLeft" class="footLink" href="/releases.html" title="Catatan rilis">DMetric</a>
+    <span id="footRight"></span>
+  </div>
+  <a class="dalangBrand" href="https://dalang.io" target="_blank" rel="noopener" title="Dalang.io">
+    <img src="/dalang-logo.svg" alt="Dalang.io logo" width="20" height="20">
+    <span>© 2026 Dalang Pte Ltd · dalang.io</span>
+  </a>
 </footer>
 
 <dialog id="settingsDialog" aria-labelledby="settingsTitle">
@@ -408,6 +420,21 @@
     <div class="formSection">Interface jaringan</div>
     <div class="ifaceList" id="ifaceList"><span class="sub">Memuat…</span></div>
     <small class="fieldHint">Kosong = semua interface non-loopback. Pilih NIC yang menghadap client/Chromeleon agar iSCSI/backup tidak mengaburkan angka Internet.</small>
+    <div class="formSection">Pembaruan</div>
+    <div class="formGrid">
+      <label>Mode pembaruan
+        <select name="update_mode" id="updateMode">
+          <option value="manual">Manual — cek dan update lewat tombol</option>
+          <option value="check">Cek otomatis — hanya memberi tahu</option>
+          <option value="install">Pasang otomatis — unduh, verifikasi SHA256, restart</option>
+        </select>
+        <small id="updateModeNote"></small>
+      </label>
+      <label>Cek tiap (jam)
+        <input type="number" name="update_interval_hours" min="1" max="168" step="1" required>
+        <small>Dicek juga sekali saat startup. Hanya berlaku bila mode bukan manual.</small>
+      </label>
+    </div>
     <div class="formSection">Ambang alert</div>
     <div class="formGrid">
       <label>CPU sistem (%)
@@ -459,6 +486,7 @@
     <div><span class="eyebrow">Terbaru</span><strong id="upLatest">—</strong></div>
   </div>
   <div class="updateStatus" id="upStatus" role="status">Memeriksa rilis…</div>
+  <div class="sub updateAuto" id="upAuto"></div>
   <div class="sub" id="upAsset"></div>
   <pre class="updateNotes" id="upNotes"></pre>
   <a id="upRelease" target="_blank" rel="noopener" hidden>Lihat rilis di GitHub →</a>
@@ -469,6 +497,26 @@
     <a class="btn" href="/releases.html">Catatan rilis</a>
     <button type="button" class="btn" id="upCheck">Cek lagi</button>
     <button type="button" class="btn primary" id="upInstall" disabled>Update &amp; restart</button>
+  </div>
+</dialog>
+
+<dialog id="prereqDialog" aria-labelledby="prereqTitle">
+  <div class="dialogHead">
+    <div>
+      <h2 id="prereqTitle">Prasyarat aplikasi</h2>
+      <p class="dialogSub">Pemeriksaan agar DMetric dan kesehatan hardware berjalan lancar di mesin ini.</p>
+    </div>
+    <button type="button" class="iconBtn" id="closePrereq" aria-label="Tutup">✕</button>
+  </div>
+  <div class="dialogBody">
+    <div class="updateStatus" id="prereqStatus" role="status">Memeriksa prasyarat…</div>
+    <div class="prereqList" id="prereqList"></div>
+  </div>
+  <div class="dialogFoot">
+    <span class="dialogMeta" id="prereqMeta"></span>
+    <span class="spacer"></span>
+    <a class="btn" href="https://dalang.io" target="_blank" rel="noopener">dalang.io</a>
+    <button type="button" class="btn primary" id="prereqCheck">Cek lagi</button>
   </div>
 </dialog>
 

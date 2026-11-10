@@ -61,6 +61,7 @@ func finalize(h *model.Hardware) {
 		h.PSUs = []model.HWPSU{}
 	}
 	h.Issues = []string{}
+	dedupeStorageIDs(h.Storage)
 
 	for i := range h.Storage {
 		assessStorage(&h.Storage[i])
@@ -371,4 +372,33 @@ func containsAny(s string, needles ...string) bool {
 		}
 	}
 	return false
+}
+
+// dedupeStorageIDs keeps two disks that report the same identity apart (a
+// controller handing out identical IDs, or identical model strings), so a
+// row can always be told from another. The first keeps its ID unchanged.
+func dedupeStorageIDs(disks []model.HWStorage) {
+	seen := map[string]int{}
+	for i := range disks {
+		id := disks[i].ID
+		if id == "" {
+			continue
+		}
+		seen[id]++
+		if seen[id] > 1 {
+			suffix := disks[i].Name
+			if suffix == "" || suffix == id {
+				suffix = fmt.Sprintf("#%d", seen[id])
+			}
+			disks[i].ID = id + " [" + suffix + "]"
+		}
+	}
+}
+
+func shortError(err error) string {
+	text := err.Error()
+	if len(text) > 100 {
+		text = text[:100]
+	}
+	return text
 }

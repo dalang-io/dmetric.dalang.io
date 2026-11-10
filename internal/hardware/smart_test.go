@@ -8,7 +8,7 @@ import (
 )
 
 // Captured from `nvme smart-log /dev/nvme0n1 -o json` (nvme-cli 2.16) on a
-// production hypervisor. Temperature is Kelvin.
+// server with an NVMe drive. Temperature is Kelvin.
 const nvmeCLIFixture = `{"critical_warning":0,"temperature":320,"avail_spare":100,"spare_thresh":1,
 "percent_used":0,"endurance_grp_critical_warning_summary":0,"data_units_read":2006912,
 "data_units_written":5886277,"host_read_commands":26171674,"host_write_commands":187068194,

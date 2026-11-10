@@ -137,7 +137,20 @@ func main() {
 	if repo == "" {
 		repo = os.Getenv("DMETRIC_UPDATE_REPO")
 	}
-	srv.SetUpdater(update.New(dataDir, model.Version, repo))
+	updater := update.New(dataDir, model.Version, repo)
+	srv.SetUpdater(updater)
+	// Background update checks/installs follow Settings -> Pembaruan (manual
+	// by default: nothing runs unless the operator turns it on).
+	go updater.RunAuto(ctx, srv.UpdatePolicy, func(result update.Result) {
+		if result.Restart == nil {
+			return
+		}
+		time.AfterFunc(800*time.Millisecond, func() {
+			if err := result.Restart(); err != nil {
+				log.Printf("dmetric: restart setelah update otomatis: %v", err)
+			}
+		})
+	})
 	serveErr := make(chan error, 1)
 	go func() { serveErr <- srv.Serve(ln) }()
 

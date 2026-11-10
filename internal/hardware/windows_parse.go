@@ -115,6 +115,8 @@ type winMemory struct {
 
 type winDisk struct {
 	FriendlyName      string   `json:"FriendlyName"`
+	UniqueID          string   `json:"UniqueId"`
+	DeviceID          string   `json:"DeviceId"`
 	MediaType         string   `json:"MediaType"`
 	BusType           string   `json:"BusType"`
 	Size              *uint64  `json:"Size"`
@@ -250,6 +252,8 @@ func parseWindowsPayload(data []byte) (model.Hardware, error) {
 			name = fmt.Sprintf("disk %d", i+1)
 		}
 		entry := model.HWStorage{
+			ID:                windowsDiskID(disk.UniqueID, name, clean(disk.SerialNumber)),
+			Device:            windowsDevicePath(disk.DeviceID),
 			Name:              name,
 			Model:             name,
 			Serial:            clean(disk.SerialNumber),
@@ -284,6 +288,58 @@ func parseWindowsPayload(data []byte) (model.Hardware, error) {
 		hw.System.WHEAErrors = *payload.WheaErrors
 	}
 	return hw, nil
+}
+
+// windowsDiskID gives a disk an identity that survives reboots and disk
+// renumbering. Get-PhysicalDisk's UniqueId is the NAA/EUI identifier for
+// SAS/SATA/NVMe disks and RAID logical volumes (HPE: 32 hex digits); when it
+// is not a recognisable identifier, the model+serial is used.
+func windowsDiskID(uniqueID, friendly, serial string) string {
+	u := strings.ToLower(clean(uniqueID))
+	switch {
+	case strings.HasPrefix(u, "naa.") || strings.HasPrefix(u, "eui."):
+		if !allZeroHex(u[4:]) {
+			return u
+		}
+	case isHex(u) && (len(u) == 16 || len(u) == 32) && !allZeroHex(u):
+		return "naa." + u
+	}
+	if serial = clean(serial); serial != "" {
+		return strings.NewReplacer(" ", "_", "/", "_").Replace(strings.TrimSpace(friendly + "_" + serial))
+	}
+	return ""
+}
+
+func isHex(s string) bool {
+	if s == "" {
+		return false
+	}
+	for _, r := range s {
+		if !(r >= '0' && r <= '9' || r >= 'a' && r <= 'f') {
+			return false
+		}
+	}
+	return true
+}
+
+func allZeroHex(s string) bool { return strings.Trim(s, "0") == "" }
+
+// windowsDevicePath is \\.\PhysicalDriveN for a Get-PhysicalDisk DeviceId.
+func windowsDevicePath(deviceID string) string {
+	deviceID = clean(deviceID)
+	if deviceID == "" || !isDigits(deviceID) {
+		return ""
+	}
+	return `\\.\PhysicalDrive` + deviceID
+}
+
+func isDigits(s string) bool {
+	for _, r := range s {
+		if r < '0' || r > '9' {
+			return false
+		}
+	}
+	return s != ""
 }
 
 func clean(s string) string {

@@ -2,10 +2,12 @@
   "name": "DMetric",
   "slug": "dmetric",
   "identifier": "io.dalang.dmetric",
-  "version": "2026.11.1",
+  "version": "2026.11.2",
   "publisher": "Dalang Pte Ltd",
-  "copyright": "© 2026 Dalang Pte Ltd",
+  "license": "BSD-3-Clause",
+  "copyright": "© 2026 Dalang Pte Ltd · dalang.io",
   "icon": "resources/icon.png",
+  "resources": ["LICENSE"],
   "macos": {
     "minimumSystemVersion": "12.0"
   },

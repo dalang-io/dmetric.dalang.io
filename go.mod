@@ -5,6 +5,7 @@ go 1.27.3
 require (
 	github.com/egoist/mygo v0.8.3
 	github.com/shirou/gopsutil/v4 v4.26.10
+	golang.org/x/sys v0.49.0
 	modernc.org/sqlite v1.62.0
 )
 
@@ -22,7 +23,6 @@ require (
 	github.com/tklauser/numcpus v0.12.0 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
 	golang.org/x/net v0.59.0 // indirect
-	golang.org/x/sys v0.49.0 // indirect
 	golang.org/x/text v0.43.0 // indirect
 	modernc.org/libc v1.80.1 // indirect
 	modernc.org/mathutil v1.7.1 // indirect

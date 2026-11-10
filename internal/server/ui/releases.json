@@ -1,6 +1,37 @@
 {
   "releases": [
     {
+      "version": "2026.11.2",
+      "released": true,
+      "date": "2026-11-10",
+      "title": "Paritas Windows Server dan HPE Smart Array",
+      "groups": [
+        {
+          "kind": "added",
+          "items": [
+            "HPE Smart Array lewat ssacli (Windows dan Linux): drive fisik di belakang RAID dengan status, suhu, jam nyala, dan sisa umur SSD; status logical drive (RAID level, degraded, rebuilding); serta status controller, cache, dan baterai/kapasitor. Belum diuji pada server HPE nyata.",
+            "Windows: pembaca SMART ATA bawaan (IOCTL_ATA_PASS_THROUGH) untuk disk SATA yang tampil langsung ke OS, dengan tabel detail yang sama seperti di Linux. Perlu Administrator. Belum diuji pada Windows nyata.",
+            "Baris controller RAID di daftar disk fisik dengan ringkasan kesehatan cache dan baterai.",
+            "Pembaruan otomatis di Pengaturan: Manual (bawaan), Cek otomatis, atau Pasang otomatis. Dicek setelah startup dan tiap 24 jam (dapat diatur 1–168 jam). Pemasangan otomatis mewajibkan SHA256, menyimpan binary lama sebagai .prev, dan tidak mengulang versi yang sudah dicoba dalam 24 jam.",
+            "Status pembaruan otomatis (waktu cek terakhir dan hasilnya) di dialog Update.",
+            "Build rilis manual tanpa CI: make release menghasilkan 6 binary, DMG macOS arm64 dan Intel, SHA256SUMS, dan catatan rilis dari satu sumber (releases.json).",
+            "Dokumentasi baru: kesehatan hardware dan SMART, pembaruan, dan cara membuat rilis (folder docs).",
+            "Menu Prasyarat: memeriksa hak akses, direktori data, ruang disk, WebView, PowerShell/CIM, counter disk, akses GitHub, dan tool hardware opsional, lengkap dengan tindakan perbaikan.",
+            "Copyright dan logo Dalang.io di dashboard; lisensi proyek BSD-3-Clause (lisensi yang sama dengan Go)."
+          ]
+        },
+        {
+          "kind": "changed",
+          "items": [
+            "Windows: disk diidentifikasi dengan ID stabil (UniqueId/NAA), bukan hanya nama model yang sama untuk semua volume HPE.",
+            "ID yang kembar antar disk dibedakan otomatis, dan status RAID degraded atau drive gagal menandai kesehatan hardware keseluruhan sebagai kritis.",
+            "Pengaturan pembaruan hanya dapat diubah dari server (localhost), sama seperti tombol Update, agar client LAN tidak bisa mengaktifkan pemasangan otomatis.",
+            "Pengecekan pembaruan berjalan di server, bukan lagi hanya di browser yang sedang terbuka."
+          ]
+        }
+      ]
+    },
+    {
       "version": "2026.11.1",
       "released": true,
       "date": "2026-11-10",

@@ -13,7 +13,7 @@ import (
 
 // Version is the application version, also reported by /api/health. It is a
 // variable so release builds set it from the CalVer tag with -X.
-var Version = "2026.11.1"
+var Version = "2026.11.2"
 
 // DefaultPort is the HTTP port of the web app and of the desktop app.
 const DefaultPort = 8154
@@ -145,6 +145,30 @@ type Settings struct {
 	// NetworkInterfaces selects which non-loopback interfaces are summed
 	// into the Internet card. Empty means all of them.
 	NetworkInterfaces []string `json:"network_interfaces"`
+	// Update controls how DMetric checks for and installs new releases.
+	Update UpdateSettings `json:"update"`
+}
+
+// Update modes.
+const (
+	// UpdateManual never contacts GitHub on its own; the operator clicks
+	// "Cek" / "Update" (the dashboard may still show a hint when opened).
+	UpdateManual = "manual"
+	// UpdateCheck looks for a new release at startup and every interval and
+	// shows it in the dashboard, but installs nothing.
+	UpdateCheck = "check"
+	// UpdateInstall also downloads, verifies (SHA256 required) and installs
+	// the new release, then restarts.
+	UpdateInstall = "install"
+
+	DefaultUpdateIntervalHours = 24
+	MaxUpdateIntervalHours     = 168
+)
+
+// UpdateSettings is the automatic update policy.
+type UpdateSettings struct {
+	Mode          string `json:"mode"`
+	IntervalHours int    `json:"interval_hours"`
 }
 
 // DefaultSettings returns the settings of a fresh installation.
@@ -155,6 +179,7 @@ func DefaultSettings() Settings {
 		Thresholds:      DefaultThresholds(),
 		WatchApps:       []string{"chromeleon", "sqlservr"},
 		NetworkProbes:   []string{},
+		Update:          UpdateSettings{Mode: UpdateManual, IntervalHours: DefaultUpdateIntervalHours},
 	}
 }
 
@@ -167,6 +192,12 @@ func (s *Settings) Normalize() {
 		s.IntervalSeconds = DefaultIntervalSeconds
 	}
 	s.Thresholds.Normalize()
+	if s.Update.Mode == "" {
+		s.Update.Mode = UpdateManual
+	}
+	if s.Update.IntervalHours == 0 {
+		s.Update.IntervalHours = DefaultUpdateIntervalHours
+	}
 	s.WatchApps = cleanList(s.WatchApps)
 	s.NetworkProbes = cleanList(s.NetworkProbes)
 	s.NetworkInterfaces = cleanList(s.NetworkInterfaces)
@@ -205,6 +236,14 @@ func (s Settings) Validate() error {
 	}
 	if err := s.Thresholds.Validate(); err != nil {
 		return err
+	}
+	switch s.Update.Mode {
+	case UpdateManual, UpdateCheck, UpdateInstall:
+	default:
+		return errors.New("update.mode harus manual, check, atau install")
+	}
+	if s.Update.IntervalHours < 1 || s.Update.IntervalHours > MaxUpdateIntervalHours {
+		return fmt.Errorf("update.interval_hours harus antara 1 dan %d", MaxUpdateIntervalHours)
 	}
 	if len(s.WatchApps) > 8 {
 		return errors.New("watch_apps maksimal 8 pola")
@@ -542,8 +581,10 @@ type HWPSU struct {
 type HWStorage struct {
 	// ID is the reboot-stable identity (WWN / by-id alias). Name is the
 	// kernel name (sda), kept only as a hint because it changes across boots.
-	ID                string   `json:"id,omitempty"`
-	Name              string   `json:"name"`
+	ID   string `json:"id,omitempty"`
+	Name string `json:"name"`
+	// Device is the OS device path/number (sda, PhysicalDrive1); a hint only.
+	Device            string   `json:"device,omitempty"`
 	Model             string   `json:"model"`
 	Serial            string   `json:"serial"`
 	Media             string   `json:"media"`

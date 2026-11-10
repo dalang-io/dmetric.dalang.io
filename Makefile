@@ -1,8 +1,8 @@
 APP     := dmetric
-VERSION ?= 2026.11.1
+VERSION ?= 2026.11.2
 LDFLAGS := -s -w -X dmetric.dalang.io/internal/model.Version=$(VERSION)
 
-.PHONY: run web test build cross icon clean
+.PHONY: run web test build cross icon clean release release-check
 
 # Desktop window + web app on http://127.0.0.1:8154
 run:
@@ -34,3 +34,12 @@ icon:
 
 clean:
 	rm -rf dist build .mygo
+
+# Manual release build (binaries + macOS DMGs + SHA256SUMS + notes) into
+# dist/release/v$(VERSION). Nothing is uploaded; see scripts/release.sh.
+release:
+	./scripts/release.sh
+
+# Validate the release notes entry for $(VERSION) without building.
+release-check:
+	go run ./tools/relnotes -version $(VERSION) -check

@@ -84,6 +84,15 @@ type Manager struct {
 	mu       sync.Mutex
 	cached   Info
 	cachedAt time.Time
+
+	// Automatic update loop (auto.go). The knobs are fields so tests can
+	// run the loop in milliseconds.
+	autoMu       sync.Mutex
+	auto         AutoStatus
+	startupDelay time.Duration
+	autoPoll     time.Duration
+	canInstall   func() error
+	installFn    func(downloaded string) (func() error, error)
 }
 
 // New creates an updater. repo may be empty for DefaultRepo.
@@ -98,6 +107,10 @@ func New(dataDir, current, repo string) *Manager {
 		apiURL:         "https://api.github.com/repos/" + repo + "/releases/latest",
 		client:         &http.Client{Timeout: 30 * time.Second},
 		downloadClient: &http.Client{Timeout: 10 * time.Minute},
+		startupDelay:   30 * time.Second,
+		autoPoll:       time.Minute,
+		canInstall:     CanSelfInstall,
+		installFn:      installUpdate,
 	}
 }
 
@@ -185,9 +198,34 @@ func (m *Manager) fetchRelease(ctx context.Context) (*release, error) {
 	return &rel, nil
 }
 
+// InstallOptions tunes Install.
+type InstallOptions struct {
+	// RequireChecksum refuses a release that does not publish a verifiable
+	// SHA256 for this platform's asset. Unattended installs set it.
+	RequireChecksum bool
+}
+
 // Install downloads and places the newest binary, returning a restart
 // callback. It refuses development builds and bundled macOS apps.
 func (m *Manager) Install(ctx context.Context, requested string) (Result, error) {
+	return m.InstallWith(ctx, requested, InstallOptions{})
+}
+
+// CanSelfInstall reports why this process cannot replace its own binary
+// (macOS .app bundle, `go run`), or nil when it can.
+func CanSelfInstall() error {
+	exe, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("menemukan executable: %w", err)
+	}
+	if resolved, err := filepath.EvalSymlinks(exe); err == nil {
+		exe = resolved
+	}
+	return selfInstallBlocker(exe)
+}
+
+// InstallWith is Install with options.
+func (m *Manager) InstallWith(ctx context.Context, requested string, opts InstallOptions) (Result, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -225,11 +263,14 @@ func (m *Manager) Install(ctx context.Context, requested string) (Result, error)
 			return Result{}, fmt.Errorf("checksum untuk %s tidak ada di %s", info.AssetName, info.checksumName)
 		}
 	}
+	if opts.RequireChecksum && expected == "" {
+		return Result{}, errors.New("rilis tidak menyediakan SHA256 yang dapat diverifikasi; pemasangan otomatis ditolak")
+	}
 	if err := m.downloadFile(ctx, info.assetURL, target, expected); err != nil {
 		return Result{}, err
 	}
 
-	restart, err := installUpdate(target)
+	restart, err := m.installFn(target)
 	if err != nil {
 		return Result{}, err
 	}

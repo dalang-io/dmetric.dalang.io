@@ -24,12 +24,12 @@ func TestLinuxStorageSkipsRBDAndUsesStableID(t *testing.T) {
 		os.WriteFile(filepath.Join(dir, "queue", "rotational"), []byte(rota), 0o644)
 		os.WriteFile(filepath.Join(dir, "size"), []byte("2000000"), 0o644)
 	}
-	mk("sda", "MZ7KH480", "S5CN", "0")
+	mk("sda", "EXAMPLE480", "SN0001", "0")
 	mk("sde", "PERC H330 Mini", "0082", "1")
 	for _, n := range []string{"rbd0", "rbd1", "loop0", "dm-0", "md0"} {
 		mk(n, "", "", "0")
 	}
-	os.Symlink(filepath.Join(sys, "sda"), filepath.Join(byID, "wwn-0x5002538e1024925d"))
+	os.Symlink(filepath.Join(sys, "sda"), filepath.Join(byID, "wwn-0x5000000000000a0a"))
 
 	var notes []string
 	got := linuxStorageAt(context.Background(), &notes, sys, byID)
@@ -45,7 +45,7 @@ func TestLinuxStorageSkipsRBDAndUsesStableID(t *testing.T) {
 			t.Errorf("%s must not be listed as a physical disk", bad)
 		}
 	}
-	if seen["sda"] != "wwn-0x5002538e1024925d" {
+	if seen["sda"] != "wwn-0x5000000000000a0a" {
 		t.Errorf("sda id = %q", seen["sda"])
 	}
 	for _, d := range got {

@@ -21,6 +21,7 @@ import (
 
 	"dmetric.dalang.io/internal/model"
 	"dmetric.dalang.io/internal/monitor"
+	"dmetric.dalang.io/internal/prereq"
 	"dmetric.dalang.io/internal/store"
 	"dmetric.dalang.io/internal/update"
 )
@@ -40,6 +41,7 @@ type Server struct {
 	portLocked      bool
 	intervalLocked  bool
 	updater         *update.Manager
+	desktop         bool
 	start           time.Time
 
 	mu         sync.Mutex
@@ -116,6 +118,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/settings", s.handleGetSettings)
 	mux.HandleFunc("PUT /api/settings", s.handlePutSettings)
 	mux.HandleFunc("GET /api/health", s.handleHealth)
+	mux.HandleFunc("GET /api/prerequisites", s.handlePrerequisites)
 	mux.HandleFunc("GET /api/update", s.handleUpdate)
 	mux.HandleFunc("POST /api/update/install", s.handleUpdateInstall)
 	mux.HandleFunc("GET /api/candidates", s.handleCandidates)
@@ -291,16 +294,34 @@ func (s *Server) handleGetSettings(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handlePutSettings(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, 64<<10)
-	var incoming model.Settings
-	if err := json.NewDecoder(r.Body).Decode(&incoming); err != nil {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
 		writeError(w, http.StatusBadRequest, "JSON pengaturan tidak valid")
 		return
 	}
-	incoming.Normalize()
+	var incoming model.Settings
+	if err := json.Unmarshal(body, &incoming); err != nil {
+		writeError(w, http.StatusBadRequest, "JSON pengaturan tidak valid")
+		return
+	}
+	// Clients that predate the update block must not silently reset it.
+	var present map[string]json.RawMessage
+	_ = json.Unmarshal(body, &present)
+	_, hasUpdate := present["update"]
 
 	s.mu.Lock()
 	current := s.settings
 	s.mu.Unlock()
+	if !hasUpdate {
+		incoming.Update = current.Update
+	}
+	incoming.Normalize()
+	// Like manual installs, the update policy is a server-side decision: a
+	// LAN client must not be able to switch on unattended installs.
+	if incoming.Update != current.Update && !requestIsLocal(r) {
+		writeError(w, http.StatusForbidden, "pengaturan pembaruan hanya dapat diubah dari server (localhost)")
+		return
+	}
 	if s.portLocked && incoming.Port != current.Port {
 		writeError(w, http.StatusBadRequest, "port ditetapkan oleh flag atau variabel lingkungan")
 		return
@@ -443,6 +464,34 @@ func (s *Server) handleCandidates(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// SetDesktop records whether a desktop window is expected, for the
+// prerequisite report.
+func (s *Server) SetDesktop(desktop bool) {
+	s.mu.Lock()
+	s.desktop = desktop
+	s.mu.Unlock()
+}
+
+func (s *Server) handlePrerequisites(w http.ResponseWriter, r *http.Request) {
+	s.mu.Lock()
+	updater := s.updater
+	desktop := s.desktop
+	s.mu.Unlock()
+	repo := ""
+	if updater != nil {
+		repo = updater.Repo()
+	}
+	report := prereq.Run(r.Context(), prereq.Options{
+		DataDir:  s.dataDir,
+		Host:     s.host,
+		Port:     s.effectivePort,
+		Desktop:  desktop,
+		Repo:     repo,
+		Snapshot: s.mon.Latest(),
+	})
+	writeJSON(w, http.StatusOK, report)
+}
+
 // SetUpdater enables the GitHub update endpoints.
 func (s *Server) SetUpdater(updater *update.Manager) {
 	s.mu.Lock()
@@ -452,7 +501,17 @@ func (s *Server) SetUpdater(updater *update.Manager) {
 
 type updateView struct {
 	update.Info
-	InstallAllowed bool `json:"install_allowed"`
+	InstallAllowed bool              `json:"install_allowed"`
+	Auto           update.AutoStatus `json:"auto"`
+}
+
+// UpdatePolicy is the current automatic update policy; the background updater
+// re-reads it so a settings change applies without a restart.
+func (s *Server) UpdatePolicy() update.Policy {
+	s.mu.Lock()
+	cfg := s.settings.Update
+	s.mu.Unlock()
+	return update.Policy{Mode: cfg.Mode, Interval: time.Duration(cfg.IntervalHours) * time.Hour}
 }
 
 func (s *Server) handleUpdate(w http.ResponseWriter, r *http.Request) {
@@ -465,7 +524,7 @@ func (s *Server) handleUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 	force := r.URL.Query().Get("refresh") == "1"
 	info := updater.Check(r.Context(), force)
-	writeJSON(w, http.StatusOK, updateView{Info: info, InstallAllowed: requestIsLocal(r)})
+	writeJSON(w, http.StatusOK, updateView{Info: info, InstallAllowed: requestIsLocal(r), Auto: updater.AutoStatus()})
 }
 
 func (s *Server) handleUpdateInstall(w http.ResponseWriter, r *http.Request) {

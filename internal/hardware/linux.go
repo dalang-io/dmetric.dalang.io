@@ -75,6 +75,7 @@ func collect(ctx context.Context) model.Hardware {
 		hw.Notes = append(hw.Notes, "Status PSU tidak tersedia (butuh ipmitool/iLO)")
 	}
 	hw.Storage = linuxStorage(ctx, &hw.Notes)
+	mergeSSACLI(ctx, &hw) // HPE Smart Array: drives, RAID, cache, battery
 	finalize(&hw)
 	return hw
 }
@@ -455,8 +456,8 @@ func linuxStorageAt(ctx context.Context, notes *[]string, sysBlock, byIDDir stri
 	}
 	if raidSeen && smartPath != "" {
 		out = append(out, megaraidDrives(ctx, smartPath, notes)...)
-	} else if raidSeen {
-		*notes = append(*notes, "RAID controller terdeteksi; drive fisik di belakangnya butuh smartctl (-d megaraid,N) atau storcli/iLO")
+	} else if raidSeen && findSSACLI() == "" {
+		*notes = append(*notes, "RAID controller terdeteksi; drive fisik di belakangnya butuh smartctl (-d megaraid,N), ssacli (HPE), atau storcli")
 	}
 	return out
 }
@@ -532,12 +533,4 @@ func megaraidDrives(ctx context.Context, smartPath string, notes *[]string) []mo
 		*notes = append(*notes, "drive fisik di belakang RAID tidak terbaca smartctl (cek mode controller / storcli)")
 	}
 	return drives
-}
-
-func shortError(err error) string {
-	text := err.Error()
-	if len(text) > 100 {
-		text = text[:100]
-	}
-	return text
 }

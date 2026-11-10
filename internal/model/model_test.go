@@ -1,6 +1,9 @@
 package model
 
-import "testing"
+import (
+	"encoding/json"
+	"testing"
+)
 
 func TestSettingsNormalizeAndValidate(t *testing.T) {
 	var settings Settings
@@ -105,5 +108,35 @@ func TestSettingsNetworkInterfaces(t *testing.T) {
 	bad.NetworkInterfaces = make([]string, 65)
 	if err := bad.Validate(); err == nil {
 		t.Fatal("65 interfaces accepted")
+	}
+}
+
+func TestUpdateSettingsDefaultsAndValidation(t *testing.T) {
+	s := DefaultSettings()
+	if s.Update.Mode != UpdateManual || s.Update.IntervalHours != DefaultUpdateIntervalHours {
+		t.Fatalf("defaults must be safe: %+v", s.Update)
+	}
+	// Settings stored before this feature existed have no update block.
+	var old Settings
+	if err := json.Unmarshal([]byte(`{"port":8154,"interval_seconds":2}`), &old); err != nil {
+		t.Fatal(err)
+	}
+	old.Normalize()
+	if old.Update.Mode != UpdateManual || old.Update.IntervalHours != DefaultUpdateIntervalHours {
+		t.Fatalf("old settings must normalize to manual/default interval: %+v", old.Update)
+	}
+	for _, bad := range []UpdateSettings{{Mode: "auto", IntervalHours: 12}, {Mode: UpdateCheck, IntervalHours: -1}, {Mode: UpdateInstall, IntervalHours: 999}} {
+		s := DefaultSettings()
+		s.Update = bad
+		if err := s.Validate(); err == nil {
+			t.Errorf("%+v must be rejected", bad)
+		}
+	}
+	for _, mode := range []string{UpdateManual, UpdateCheck, UpdateInstall} {
+		s := DefaultSettings()
+		s.Update.Mode = mode
+		if err := s.Validate(); err != nil {
+			t.Errorf("%s: %v", mode, err)
+		}
 	}
 }
