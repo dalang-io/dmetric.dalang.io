@@ -1,6 +1,21 @@
 {
   "releases": [
     {
+      "version": "2026.11.3",
+      "released": true,
+      "date": "2026-11-10",
+      "title": "Perbaikan status Prasyarat desktop dan branding",
+      "groups": [
+        {
+          "kind": "fixed",
+          "items": [
+            "Laporan Prasyarat kini mengenali mode desktop (bukan selalu web-only), sehingga status WebView2/WebKitGTK benar.",
+            "Gaya dialog Prasyarat, titik status, dan brand Dalang.io di footer dimuat kembali; logo dan copyright tampil konsisten."
+          ]
+        }
+      ]
+    },
+    {
       "version": "2026.11.2",
       "released": true,
       "date": "2026-11-10",

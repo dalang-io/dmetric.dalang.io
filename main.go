@@ -139,6 +139,7 @@ func main() {
 	}
 	updater := update.New(dataDir, model.Version, repo)
 	srv.SetUpdater(updater)
+	srv.SetDesktop(!noWindow)
 	// Background update checks/installs follow Settings -> Pembaruan (manual
 	// by default: nothing runs unless the operator turns it on).
 	go updater.RunAuto(ctx, srv.UpdatePolicy, func(result update.Result) {

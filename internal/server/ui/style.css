@@ -178,6 +178,10 @@ h1, h2, p { margin: 0; }
 .iconBtn:hover { background: var(--surface-3); color: var(--fg); }
 .iconBtn:active { background: var(--border); }
 
+.updateBtn, .prereqBtn { position: relative; }
+.updateBtn .updateDot.warn, .prereqBtn .updateDot.warn { background: var(--warning); }
+.updateBtn .updateDot.crit, .prereqBtn .updateDot.crit { background: var(--error); }
+
 .updateDot {
   position: absolute;
   top: 6px;
@@ -835,6 +839,42 @@ input:user-invalid:focus { box-shadow: 0 0 0 3px var(--error-soft); }
 }
 .updateNotes:empty { display: none; }
 #upRelease { display: inline-block; margin-top: 12px; color: var(--accent); font-size: 12.5px; font-weight: 600; }
+
+.prereqList { display: flex; flex-direction: column; gap: 7px; margin-top: 12px; }
+.prereqItem {
+  display: flex;
+  gap: 10px;
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+.prereqItem .reqDot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin-top: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.prereqItem.ok .reqDot { background: var(--success); }
+.prereqItem.warning .reqDot { background: var(--warning); }
+.prereqItem.critical .reqDot { background: var(--error); }
+.prereqBody { min-width: 0; }
+.prereqBody strong { display: block; font-size: 12.5px; }
+.prereqBody p { margin: 2px 0 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
+.prereqBody .reqAction { color: var(--fg); font-weight: 600; }
+.footGroup { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.dalangBrand {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 11.5px;
+  text-decoration: none;
+}
+.dalangBrand:hover { color: var(--accent); }
+.dalangBrand img { display: block; border-radius: 5px; }
 
 /* Toast */
 .toast {
