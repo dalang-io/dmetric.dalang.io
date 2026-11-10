@@ -860,7 +860,8 @@ input:user-invalid:focus { box-shadow: 0 0 0 3px var(--error-soft); }
 .prereqItem.ok .reqDot { background: var(--success); }
 .prereqItem.warning .reqDot { background: var(--warning); }
 .prereqItem.critical .reqDot { background: var(--error); }
-.prereqBody { min-width: 0; }
+.prereqBody { min-width: 0; overflow-wrap: anywhere; word-break: break-word; }
+.prereqItem { min-width: 0; }
 .prereqBody strong { display: block; font-size: 12.5px; }
 .prereqBody p { margin: 2px 0 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
 .prereqBody .reqAction { color: var(--fg); font-weight: 600; }

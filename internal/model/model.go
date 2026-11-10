@@ -13,7 +13,7 @@ import (
 
 // Version is the application version, also reported by /api/health. It is a
 // variable so release builds set it from the CalVer tag with -X.
-var Version = "2026.11.3"
+var Version = "2026.11.4"
 
 // DefaultPort is the HTTP port of the web app and of the desktop app.
 const DefaultPort = 8154
